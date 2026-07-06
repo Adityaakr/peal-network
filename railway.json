@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "docker/Dockerfile.web"
+    "dockerfilePath": "docker/Dockerfile.railway"
   },
   "deploy": {
     "healthcheckPath": "/",
