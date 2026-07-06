@@ -5,6 +5,7 @@ members = [
     "crates/bte-node",
     "crates/bte-coordinator",
     "crates/bte-cli",
+    "crates/bte-wasm",
 ]
 
 [workspace.package]

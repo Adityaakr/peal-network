@@ -1,0 +1,24 @@
+[package]
+name = "bte-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "wasm-bindgen bindings for bte-crypto (seal-only by default; verify feature for client-side share verification)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Client-side share verification (pairings) — shipped as bte-sdk/verify.
+verify = ["bte-crypto/full"]
+
+[dependencies]
+bte-crypto = { path = "../bte-crypto", default-features = false, features = ["seal-only"] }
+wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.6"
+serde = { version = "1", features = ["derive"] }
+hex = { workspace = true }
+getrandom = { version = "0.2", features = ["js"] }
+# rand 0.9 (via simple-bte) pulls getrandom 0.3, which needs its own wasm flag.
+getrandom03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }

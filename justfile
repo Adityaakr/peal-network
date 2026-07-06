@@ -21,19 +21,23 @@ lint:
 test:
     cargo test --workspace
 
-# --- stubs, implemented in later phases ---
-
-test-e2e:
-    @echo "test-e2e: implemented in phase 3" && exit 1
-
+# Bring up the full dev network: coordinator + fresh ceremony + 5 nodes.
 compose-up:
-    @echo "compose-up: implemented in phase 3" && exit 1
+    docker compose -f docker/docker-compose.yml up -d --build
+    @echo "waiting for coordinator health…"
+    @for i in $(seq 1 60); do curl -fsS http://localhost:8080/v0/healthz >/dev/null 2>&1 && break; sleep 1; done
+    @curl -fsS http://localhost:8080/v0/healthz >/dev/null
 
 compose-down:
-    @echo "compose-down: implemented in phase 3" && exit 1
+    docker compose -f docker/docker-compose.yml down -v
 
+# Drive seal -> freeze -> reveal against the live stack and assert payloads.
+test-e2e:
+    cargo run --release -p bte-cli -- e2e --coordinator http://localhost:8080 --expect-verified-at-least 3
+
+# Local dev ceremony (writes gitignored .dev-ceremony/).
 ceremony:
-    @echo "ceremony: implemented in phase 3" && exit 1
+    BTE_KEYSTORE_PASS=${BTE_KEYSTORE_PASS:-devnet-pass} cargo run --release -p bte-cli -- ceremony --n 5 --t 3 --b 64 --out .dev-ceremony
 
 demo:
     @echo "demo: implemented in phase 6" && exit 1

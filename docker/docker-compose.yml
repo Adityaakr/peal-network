@@ -1,0 +1,79 @@
+# bte dev network: 1 coordinator + trusted-dealer ceremony + 5 operator nodes.
+# v0 trust model: the ceremony container is the dealer. Dev only.
+
+x-node: &node
+  image: bte:dev
+  environment: &node-env
+    BTE_DEV: "1"
+    BTE_KEYSTORE_PASS: devnet-pass
+    BTE_COORDINATOR_URL: http://coordinator:8080
+    RUST_LOG: info
+  volumes:
+    - ceremony:/ceremony:ro
+  depends_on:
+    ceremony:
+      condition: service_completed_successfully
+  restart: unless-stopped
+
+services:
+  coordinator:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: bte:dev
+    command: bte-coordinator
+    ports:
+      - "8080:8080"
+    environment:
+      BTE_DEV: "1"
+      DATABASE_URL: sqlite:///data/bte.db
+      REVEAL_TIMEOUT_SECS: "120"
+      RUST_LOG: info
+    volumes:
+      - data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/v0/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    restart: unless-stopped
+
+  ceremony:
+    image: bte:dev
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        if [ ! -f /ceremony/params.bin ]; then
+          bte-cli ceremony --n 5 --t 3 --b 64 --out /ceremony
+        fi
+        bte-cli committee-init --coordinator http://coordinator:8080 --params /ceremony/params.bin
+    environment:
+      BTE_KEYSTORE_PASS: devnet-pass
+    volumes:
+      - ceremony:/ceremony
+    depends_on:
+      coordinator:
+        condition: service_healthy
+    restart: "no"
+
+  node1:
+    <<: *node
+    command: bte-node --operator-id 1 --key /ceremony/operator-1.keystore
+  node2:
+    <<: *node
+    command: bte-node --operator-id 2 --key /ceremony/operator-2.keystore
+  node3:
+    <<: *node
+    command: bte-node --operator-id 3 --key /ceremony/operator-3.keystore
+  node4:
+    <<: *node
+    command: bte-node --operator-id 4 --key /ceremony/operator-4.keystore
+  node5:
+    <<: *node
+    command: bte-node --operator-id 5 --key /ceremony/operator-5.keystore
+
+volumes:
+  data:
+  ceremony:

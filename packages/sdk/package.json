@@ -1,7 +1,47 @@
 {
   "name": "bte-sdk",
-  "version": "0.0.0",
-  "private": true,
-  "description": "seal now. reveal on cue. Scaffolded in phase 0, implemented in phase 4.",
-  "license": "Apache-2.0"
+  "version": "0.1.0",
+  "description": "seal now. reveal on cue. Client SDK for bte, the reveal-later encryption network on commonware's batched threshold encryption.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./verify": {
+      "types": "./dist/verify.d.ts",
+      "default": "./dist/verify.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "prepublishOnly": "node scripts/build.mjs"
+  },
+  "keywords": [
+    "threshold-encryption",
+    "commit-reveal",
+    "sealed-bid",
+    "timelock",
+    "bte",
+    "commonware"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adityaakr/bte.git",
+    "directory": "packages/sdk"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
 }
