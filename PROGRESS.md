@@ -7,9 +7,9 @@
 - [x] Phase 2 — bte-coordinator
 - [x] Phase 3 — bte-node + local network
 - [x] Phase 4 — bte-sdk npm package
-- [ ] Phase 5 — explorer (IN PROGRESS)
-- [ ] Phase 6 — demos, benches, launch collateral
-- [ ] Phase 7 — sepolia anchor
+- [x] Phase 5 — explorer
+- [x] Phase 6 — demos, benches, launch collateral
+- [ ] Phase 7 — sepolia anchor (IN PROGRESS)
 - [ ] Phase 8 — ship pack
 
 ## Current status
@@ -30,8 +30,25 @@ tested. Next: explorer (phase 5) + demos (phase 6).
   network (B=64: 3 payloads + 61 dummies revealed, 5/5 shares verified).
 - Phase 4: SDK vitest 7/7 green; `node examples/ten-lines.ts` sealed + revealed
   against live compose; `just publish-dry` clean (bte-sdk name free on npm).
+- Phase 5: `pnpm -C packages/explorer build` green (9.3 kB JS). Manual checklist:
+  [x] app serves (vite preview, banner present) [x] /v0/conditions + CORS live
+  from the compose coordinator [x] home: committee stats + roster + condition
+  chips (agent-verified against live data) [x] detail: before/after board,
+  share log with rejected highlight, pre-decrypt vs finalize timings
+  (agent-verified DOM build; visual pass on next `pnpm -C packages/explorer dev`).
+- Phase 6: `just demo` PASS (8 bidders, winner crowned, 56 dummies marked).
+  `just demo-byzantine` PASS, verified via API state: 3 verified shares
+  (operator 5 killed mid-flow), operator 2 flagged rejected, reveal complete.
+  Benches (M-series, single process): seal 416µs; partial 1.16ms;
+  verify_share 12.0ms; pre_decrypt 245ms + finalize 37ms (B=64);
+  recover e2e 432ms. Consistent with paper scale (121.5ms @ B=32,
+  593.63ms @ B=128).
 
 ## Decisions log
+
+- Explorer required CORS: hand-rolled middleware in api.rs (no new deps).
+- demo-byzantine orchestration: compose overlay makes node2 byzantine from
+  boot; node5 is stopped 20s into the run (mid-flow, pre-freeze).
 
 - Use `fo` (Fujisaki-Okamoto) path for payloads; DEVIATIONS #1/#2.
 - Pin simple-bte as git dependency at rev 147a0878 (clone kept in vendor/ for

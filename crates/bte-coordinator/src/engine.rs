@@ -43,9 +43,73 @@ pub async fn tick(app: &App) -> Result<()> {
         }
     }
 
+    fire_at_block(app).await?;
     finalize_ready(app).await?;
     mark_stalled(app)?;
     Ok(())
+}
+
+/// at_block conditions: poll each referenced chain's head via JSON-RPC and
+/// fire conditions whose target height has passed. Reuses the exact
+/// freeze/reveal machinery as at_time.
+async fn fire_at_block(app: &App) -> Result<()> {
+    let pending: Vec<(String, String, i64, i64)> = {
+        let conn = app.0.db.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, committee_id, chain_id, height FROM conditions
+             WHERE status = 'pending' AND kind = 'at_block'",
+        )?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
+        rows.collect::<std::result::Result<_, _>>()?
+    };
+    if pending.is_empty() {
+        return Ok(());
+    }
+
+    let mut heads: std::collections::HashMap<i64, i64> = std::collections::HashMap::new();
+    for chain_id in pending
+        .iter()
+        .map(|(_, _, c, _)| *c)
+        .collect::<std::collections::HashSet<_>>()
+    {
+        let Some(url) = app.0.cfg.rpc_urls.get(&chain_id) else {
+            continue; // no RPC configured; condition stays pending
+        };
+        match block_number(&app.0.http, url).await {
+            Ok(height) => {
+                heads.insert(chain_id, height);
+            }
+            Err(e) => warn!(chain_id, error = %e, "eth_blockNumber failed"),
+        }
+    }
+
+    for (condition_id, committee_id, chain_id, height) in pending {
+        if heads.get(&chain_id).is_some_and(|head| *head >= height) {
+            tracing::info!(condition_id, chain_id, height, "at_block condition fired");
+            if let Err(e) = freeze_condition(app, &condition_id, &committee_id).await {
+                warn!(condition_id, error = %e, "freeze failed");
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn block_number(client: &reqwest::Client, url: &str) -> Result<i64> {
+    let resp: serde_json::Value = client
+        .post(url)
+        .json(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []
+        }))
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let hex = resp["result"]
+        .as_str()
+        .context("eth_blockNumber returned no result")?;
+    i64::from_str_radix(hex.trim_start_matches("0x"), 16).context("bad block number hex")
 }
 
 /// Freeze: pad to a multiple of B with self-sealed dummies, assign positions,

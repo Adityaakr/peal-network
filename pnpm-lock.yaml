@@ -8,6 +8,12 @@ importers:
 
   .: {}
 
+  demos/sealed-bid:
+    dependencies:
+      bte-sdk:
+        specifier: workspace:*
+        version: link:../../packages/sdk
+
   examples:
     dependencies:
       bte-sdk:
@@ -24,7 +30,14 @@ importers:
         specifier: ^6.0.0
         version: 6.4.3(@types/node@22.20.0)
 
-  packages/explorer: {}
+  packages/explorer:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.4.3(@types/node@22.20.0)
 
   packages/sdk:
     devDependencies:

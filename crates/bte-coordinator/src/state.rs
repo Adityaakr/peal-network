@@ -15,11 +15,28 @@ pub struct Config {
     /// Token bucket per IP: sustained requests/second and burst size.
     pub rate_rps: f64,
     pub rate_burst: f64,
+    /// JSON-RPC endpoints for at_block conditions, keyed by chain id.
+    /// SEPOLIA_RPC_URL maps to 11155111; BTE_RPC_URL_<chain_id> adds others.
+    pub rpc_urls: std::collections::HashMap<i64, String>,
 }
 
 impl Config {
     pub fn from_env() -> Config {
+        let mut rpc_urls = std::collections::HashMap::new();
+        if let Ok(url) = std::env::var("SEPOLIA_RPC_URL") {
+            if !url.is_empty() {
+                rpc_urls.insert(11155111, url);
+            }
+        }
+        for (key, value) in std::env::vars() {
+            if let Some(chain_id) = key.strip_prefix("BTE_RPC_URL_") {
+                if let Ok(chain_id) = chain_id.parse::<i64>() {
+                    rpc_urls.insert(chain_id, value);
+                }
+            }
+        }
         Config {
+            rpc_urls,
             reveal_timeout_secs: std::env::var("REVEAL_TIMEOUT_SECS")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -49,6 +66,8 @@ pub struct Inner {
     pub cross: Mutex<HashMap<i64, Arc<PrecomputedCrossTerms>>>,
     /// Rate limiter buckets: ip -> (tokens, last_refill_ms).
     pub buckets: Mutex<HashMap<String, (f64, i64)>>,
+    /// Shared HTTP client (at_block JSON-RPC polling).
+    pub http: reqwest::Client,
     pub cfg: Config,
 }
 
@@ -62,6 +81,7 @@ impl App {
             committees: RwLock::new(HashMap::new()),
             cross: Mutex::new(HashMap::new()),
             buckets: Mutex::new(HashMap::new()),
+            http: reqwest::Client::new(),
             cfg,
         }));
         app.load_committees()?;

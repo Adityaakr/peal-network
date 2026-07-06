@@ -38,7 +38,7 @@ fn internal(e: impl std::fmt::Display) -> ApiError {
 
 pub fn router(app: App) -> Router {
     let api = Router::new()
-        .route("/conditions", post(create_condition))
+        .route("/conditions", get(list_conditions).post(create_condition))
         .route("/conditions/{id}", get(get_condition))
         .route("/ciphertexts", post(submit_ciphertext))
         .route("/work", get(get_work))
@@ -54,7 +54,32 @@ pub fn router(app: App) -> Router {
             app.clone(),
             rate_limit,
         ))
+        .layer(axum::middleware::from_fn(cors))
         .with_state(app)
+}
+
+/// Permissive CORS for the read-only explorer (dev/testnet API, no cookies).
+async fn cors(request: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    use axum::http::{header, HeaderValue, Method};
+    let mut response = if request.method() == Method::OPTIONS {
+        StatusCode::NO_CONTENT.into_response()
+    } else {
+        next.run(request).await
+    };
+    let headers = response.headers_mut();
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static("*"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("GET, POST, OPTIONS"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("content-type"),
+    );
+    response
 }
 
 /// Token-bucket per client IP (x-forwarded-for first hop, else socket addr,
@@ -155,6 +180,11 @@ async fn create_condition(
                 (Some(c), Some(h)) => (c, h),
                 _ => return Err(bad_request("at_block needs chain_id and height")),
             };
+            if !app.0.cfg.rpc_urls.contains_key(&chain_id) {
+                return Err(bad_request(format!(
+                    "no RPC configured for chain {chain_id} (set SEPOLIA_RPC_URL or BTE_RPC_URL_{chain_id})"
+                )));
+            }
             let conn = app.0.db.lock().unwrap();
             conn.execute(
                 "INSERT INTO conditions (id, committee_id, kind, chain_id, height, status, created_at)
@@ -169,6 +199,35 @@ async fn create_condition(
         }
         _ => Err(bad_request("kind must be at_time or at_block")),
     }
+}
+
+async fn list_conditions(State(app): State<App>) -> Result<Json<Value>, ApiError> {
+    let conn = app.0.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare(
+            "SELECT c.id, c.committee_id, c.kind, c.fires_at, c.status, c.created_at,
+                    COUNT(x.ct_hash), COALESCE(SUM(x.is_dummy = 0), 0)
+             FROM conditions c LEFT JOIN ciphertexts x ON x.condition_id = c.id
+             GROUP BY c.id ORDER BY c.created_at DESC LIMIT 100",
+        )
+        .map_err(internal)?;
+    let rows: Vec<Value> = stmt
+        .query_map([], |r| {
+            Ok(json!({
+                "id": r.get::<_, String>(0)?,
+                "committee_id": r.get::<_, String>(1)?,
+                "kind": r.get::<_, String>(2)?,
+                "fires_at": r.get::<_, Option<i64>>(3)?,
+                "status": r.get::<_, String>(4)?,
+                "created_at": r.get::<_, i64>(5)?,
+                "ciphertext_count": r.get::<_, i64>(6)?,
+                "real_count": r.get::<_, i64>(7)?,
+            }))
+        })
+        .map_err(internal)?
+        .collect::<Result<_, _>>()
+        .map_err(internal)?;
+    Ok(Json(json!({"conditions": rows})))
 }
 
 async fn get_condition(

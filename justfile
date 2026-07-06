@@ -39,11 +39,26 @@ test-e2e:
 ceremony:
     BTE_KEYSTORE_PASS=${BTE_KEYSTORE_PASS:-devnet-pass} cargo run --release -p bte-cli -- ceremony --n 5 --t 3 --b 64 --out .dev-ceremony
 
+# Sealed-bid auction against the live stack (run `just compose-up` first).
 demo:
-    @echo "demo: implemented in phase 6" && exit 1
+    @curl -fsS http://localhost:8080/v0/healthz >/dev/null || { echo "coordinator not up. run: just compose-up"; exit 1; }
+    node demos/sealed-bid/index.ts
 
+# Same auction with operator 2 byzantine and operator 5 killed mid-flow.
+# Asserts: 1 rejected share flagged, reveal succeeds from 3 honest shares.
 demo-byzantine:
-    @echo "demo-byzantine: implemented in phase 6" && exit 1
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker compose -f docker/docker-compose.yml -f docker/docker-compose.byzantine.yml up -d --build
+    for i in $(seq 1 60); do curl -fsS http://localhost:8080/v0/healthz >/dev/null 2>&1 && break; sleep 1; done
+    node demos/sealed-bid/index.ts --expect-rejected 1 --expect-verified 3 &
+    DEMO=$!
+    sleep 20
+    echo "-- killing operator 5 mid-flow --"
+    docker compose -f docker/docker-compose.yml stop node5
+    wait $DEMO
+    echo "-- restoring honest network --"
+    docker compose -f docker/docker-compose.yml up -d node2 node5
 
 bench:
     cargo bench -p bte-crypto

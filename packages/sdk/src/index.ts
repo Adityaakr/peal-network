@@ -5,6 +5,9 @@
 
 import { bytesToB64, b64ToBytes, ensureWasm } from './wasm.js';
 import type { Params } from './generated/seal/bte_wasm.js';
+import { anchorCommit, type AnchorConfig } from './anchor.js';
+
+export * from './anchor.js';
 
 /** Public devnet placeholder — no public devnet is live yet. Point BteClient
  * (or BTE_DEVNET_URL) at your own stack, e.g. `just compose-up` on
@@ -139,11 +142,20 @@ export class BteClient {
     return this.paramsPromise;
   }
 
-  /** Create a reveal condition: {at: Date|unixSeconds} or {in: seconds}. */
-  async condition(when: { at?: Date | number; in?: number }): Promise<string> {
+  /** Create a reveal condition: {at: Date|unixSeconds}, {in: seconds}, or
+   * {atBlock: {chainId, height}}. */
+  async condition(when: {
+    at?: Date | number;
+    in?: number;
+    atBlock?: { chainId: number; height: number };
+  }): Promise<string> {
     const info = await this.committee();
     const body: Record<string, unknown> = { committee_id: info.id };
-    if (when.at !== undefined) {
+    if (when.atBlock !== undefined) {
+      body.kind = 'at_block';
+      body.chain_id = when.atBlock.chainId;
+      body.height = when.atBlock.height;
+    } else if (when.at !== undefined) {
       body.fires_at =
         when.at instanceof Date ? Math.round(when.at.getTime() / 1000) : when.at;
     } else if (when.in !== undefined) {
@@ -165,6 +177,7 @@ export class BteClient {
   async seal(
     payload: Uint8Array | string,
     conditionId: string,
+    opts: { anchor?: AnchorConfig } = {},
   ): Promise<{ ctHash: string; sealedB64: string }> {
     const bytes =
       typeof payload === 'string' ? new TextEncoder().encode(payload) : payload;
@@ -178,6 +191,9 @@ export class BteClient {
       method: 'POST',
       body: JSON.stringify({ condition_id: conditionId, sealed_blob_b64: sealedB64 }),
     });
+    if (opts.anchor) {
+      await anchorCommit(opts.anchor, conditionId, resp.ct_hash);
+    }
     return { ctHash: resp.ct_hash, sealedB64 };
   }
 

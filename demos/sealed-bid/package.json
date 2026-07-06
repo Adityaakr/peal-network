@@ -1,0 +1,8 @@
+{
+  "name": "bte-demo-sealed-bid",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "bte-sdk": "workspace:*"
+  }
+}

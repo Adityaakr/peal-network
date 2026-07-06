@@ -1,0 +1,6 @@
+# Overlay for `just demo-byzantine`: operator 2 posts garbage shares.
+# (BTE_DEV=1 is already set in the base file; bte-node refuses --byzantine
+# without it.)
+services:
+  node2:
+    command: bte-node --operator-id 2 --key /ceremony/operator-2.keystore --byzantine
