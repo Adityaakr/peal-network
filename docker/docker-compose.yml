@@ -23,7 +23,7 @@ services:
     image: bte:dev
     command: bte-coordinator
     ports:
-      - "8080:8080"
+      - "${BTE_PORT:-8080}:8080"
     environment:
       BTE_DEV: "1"
       DATABASE_URL: sqlite:///data/bte.db

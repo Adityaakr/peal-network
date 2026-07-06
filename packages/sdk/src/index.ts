@@ -92,6 +92,14 @@ export class BteClient {
       headers: { 'content-type': 'application/json' },
       ...init,
     });
+    const contentType = resp.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(
+        `${this.url || 'this origin'} answered ${path} with ` +
+          `${contentType.split(';')[0] || 'no content type'}, not JSON. ` +
+          `that is not a bte coordinator; check the url/port.`,
+      );
+    }
     if (!resp.ok) {
       let detail = '';
       try {

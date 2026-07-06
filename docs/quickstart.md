@@ -47,8 +47,13 @@ share shows up flagged in the log.
 ## 3. watch it in the explorer
 
 ```bash
-pnpm -C packages/explorer dev
+just explorer     # wraps: pnpm -C packages/explorer dev
 ```
+
+The dev server proxies /v0 to the coordinator, so the browser stays
+same-origin. If port 8080 is taken on your machine, run the whole stack on
+another port: `BTE_PORT=18080 just compose-up`, then
+`BTE_PORT=18080 just explorer` (and `BTE_PORT=18080 just demo`).
 
 Open http://localhost:5173: committee overview, live condition statuses, and
 reveal detail with the before/after board, per-operator share log, and

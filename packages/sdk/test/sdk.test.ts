@@ -61,7 +61,10 @@ function mockCoordinator() {
     const body = init?.body ? JSON.parse(init.body) : null;
     calls.push({ url, body });
     const json = (data: unknown, status = 200) =>
-      new Response(JSON.stringify(data), { status });
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
 
     if (url.endsWith('/v0/committees/default')) {
       return json({
