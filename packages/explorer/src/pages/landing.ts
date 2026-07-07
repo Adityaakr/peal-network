@@ -1,86 +1,64 @@
-// The landing page: a full-screen video hero with a glassmorphic nav and
-// content anchored bottom-left, staggered blur-fade entrance. Sora for
-// everything here (the landing is its own visual world; the app keeps
-// Josefin/DM Sans). The background supports HLS: point VIDEO_SRC at any
-// .m3u8 and it attaches via hls.js (lazy-imported; Safari plays it natively).
-// A plain .mp4 URL works too. The video is decorative: if it fails, the dark
-// hero stands alone.
-const VIDEO_SRC =
-  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260511_230229_7c9bc431-46cf-489a-948d-e8144d8eb5d4.mp4';
-
-async function attachVideoSource(
-  video: HTMLVideoElement,
-  src: string,
-): Promise<{ destroy(): void } | null> {
-  if (!src.endsWith('.m3u8') || video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = src;
-    return null;
-  }
-  const { default: Hls } = await import('hls.js');
-  if (!Hls.isSupported()) return null;
-  const hls = new Hls();
-  hls.loadSource(src);
-  hls.attachMedia(video);
-  return hls;
-}
-
+// The landing page: light, centered hero in the site's Josefin/DM Sans
+// system, a seal-prompt pill that hands off to the app, and the real
+// explorer screenshot (public/app-preview.png) inside a browser frame
+// rising from the bottom of the viewport.
 export function renderLanding(root: HTMLElement): () => void {
   const previousTitle = document.title;
   document.title = 'Peal Network. Programmable disclosure';
   root.innerHTML = `
     <div class="landing">
       <nav class="landing-nav" aria-label="Landing navigation">
-        <div class="landing-nav-glass">
-          <a class="landing-logo" href="#/">PEAL</a>
-          <div class="landing-links">
-            <a href="#/philosophy">Philosophy</a>
-            <a href="#/protocol">Protocol</a>
-            <a href="#/app">Explorer</a>
-            <a href="https://github.com/Adityaakr/peal-network" target="_blank" rel="noopener">Code</a>
-          </div>
-          <a class="landing-nav-cta" href="#/app">Launch App</a>
+        <a class="landing-logo" href="#/"><img src="/peal-logo.svg" alt="" width="22" height="22" />Peal</a>
+        <div class="landing-links">
+          <a href="#/philosophy">Philosophy</a>
+          <a href="#/protocol">Protocol</a>
+          <a href="#/app">Explorer</a>
+          <a href="https://github.com/Adityaakr/peal-network" target="_blank" rel="noopener">Code</a>
         </div>
+        <a class="landing-nav-cta" href="#/app">Launch App</a>
       </nav>
 
       <section class="landing-hero">
-        <video class="landing-video" autoplay muted loop playsinline aria-hidden="true"></video>
-        <div class="landing-overlay" aria-hidden="true"></div>
-        <div class="landing-content">
-          <h1 class="landing-title" style="animation-delay:0.2s">Peal <span>Network</span></h1>
-          <p class="landing-sub" style="animation-delay:0.4s">Encryption that opens on schedule, guaranteed.</p>
-          <p class="landing-desc" style="animation-delay:0.55s">Seal bids, votes, moves, and
-          intents to a threshold committee that no single operator controls. When the
-          deadline fires, the entire batch opens at once, every share verified in public.
-          No second transaction, no strategic non-reveals, usable in ten lines of
-          TypeScript.</p>
-          <div class="landing-ctas" style="animation-delay:0.7s">
-            <a class="landing-btn landing-btn-primary" href="#/app">Launch App</a>
-            <a class="landing-btn landing-btn-light" href="#/protocol">Read the Protocol</a>
+        <h1 class="landing-title" style="animation-delay:0.15s">Seal now.<br />Reveal on cue.</h1>
+
+        <form class="landing-prompt" style="animation-delay:0.3s" aria-label="Seal something">
+          <input type="text" id="landing-seal-input" placeholder="What should stay sealed?" autocomplete="off" />
+          <button type="submit" aria-label="Seal it in the app">&#8593;</button>
+        </form>
+
+        <p class="landing-sub" style="animation-delay:0.45s">Seal bids, votes, and launch
+        dates that open on schedule, all at once, verified in public. No second
+        transaction, no strategic non-reveals.</p>
+
+        <div class="landing-ctas" style="animation-delay:0.6s">
+          <a class="landing-btn landing-btn-dark" href="#/app">Launch App</a>
+          <a class="landing-btn landing-btn-light" href="#/protocol">Read the Protocol</a>
+        </div>
+
+        <div class="landing-frame" style="animation-delay:0.75s">
+          <div class="landing-frame-bar" aria-hidden="true">
+            <span class="landing-dot landing-dot-red"></span>
+            <span class="landing-dot landing-dot-yellow"></span>
+            <span class="landing-dot landing-dot-green"></span>
+            <span class="landing-frame-url">peal.network</span>
           </div>
-          <p class="landing-trust" style="animation-delay:0.85s">Batched threshold
-          encryption. 5-operator committee, any 3 reveal. Public devnet live.</p>
+          <img src="/app-preview.png" alt="The Peal explorer: seal a payload, watch the committee reveal it on cue" />
         </div>
       </section>
     </div>
   `;
 
-  const video = root.querySelector<HTMLVideoElement>('.landing-video')!;
-  let hls: { destroy(): void } | null = null;
-  let cancelled = false;
-  void attachVideoSource(video, VIDEO_SRC)
-    .then((instance) => {
-      if (cancelled) {
-        instance?.destroy();
-        return;
-      }
-      hls = instance;
-    })
-    .catch(() => {});
+  // The prompt is a handoff: whatever the visitor types rides the hash into
+  // the app, where the playground waits with the real seal flow.
+  const form = root.querySelector<HTMLFormElement>('.landing-prompt')!;
+  const onSubmit = (event: Event) => {
+    event.preventDefault();
+    location.hash = '#/app';
+  };
+  form.addEventListener('submit', onSubmit);
 
   return () => {
-    cancelled = true;
-    hls?.destroy();
-    video.removeAttribute('src');
+    form.removeEventListener('submit', onSubmit);
     document.title = previousTitle;
   };
 }

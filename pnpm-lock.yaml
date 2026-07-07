@@ -44,9 +44,6 @@ importers:
       bte-sdk:
         specifier: workspace:*
         version: link:../sdk
-      hls.js:
-        specifier: ^1.6.16
-        version: 1.6.16
     devDependencies:
       typescript:
         specifier: ^5.7.3
@@ -502,9 +499,6 @@ packages:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
-
-  hls.js@1.6.16:
-    resolution: {integrity: sha512-VSIRpLfRwlAAdGL4wiTucx2ScRipo0ed1FBatWkyt832jC4CReKstga6yIhYVwGu9LOBjuX9wzmRMeQdBJtzEA==}
 
   isows@1.0.7:
     resolution: {integrity: sha512-I1fSfDCZL5P0v33sVqeTDSpcstAg/N+wF5HS033mogOVIp4B+oHC7oOCsA3axAbBSGTJ8QubbNmnIRN/h8U7hg==}
@@ -1007,8 +1001,6 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
-
-  hls.js@1.6.16: {}
 
   isows@1.0.7(ws@8.21.0):
     dependencies:

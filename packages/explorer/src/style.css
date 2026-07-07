@@ -1790,13 +1790,13 @@ input[type='datetime-local'] {
   }
 }
 
-/* ---------- landing (full-screen dark hero over a Spline scene) ----------
-   The landing is its own visual world: Sora, near-black background, one
-   accent (the Peal blue), content anchored bottom-left, staggered blur-fade
-   entrance. body.landing-page hides the standard site chrome. */
+/* ---------- landing (light centered hero + app preview frame) ----------
+   Same Josefin/DM Sans system as the app, over a soft sky gradient. The
+   hero is one viewport tall; the browser frame with the real app screenshot
+   rises from the bottom edge and is cropped by the fold. */
 
 body.landing-page {
-  background: hsl(0 0% 8%);
+  background: #eef4fc;
 }
 
 body.landing-page .site-header {
@@ -1810,56 +1810,38 @@ body.landing-page main {
 }
 
 .landing {
-  --l-bg: hsl(0 0% 8%);
-  --l-fg: hsl(0 0% 96%);
-  --l-muted: hsl(0 0% 60%);
-  --l-primary: hsl(221 83% 53%);
-  --l-nav-button: hsl(0 0% 18%);
-  font-family: 'Sora', system-ui, -apple-system, sans-serif;
-  background: var(--l-bg);
-  color: var(--l-fg);
   min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: 'DM Sans', 'Satoshi', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #dcebfa 0%, #eaf3fc 45%, #f6f9fd 100%);
 }
 
 .landing-nav {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  z-index: 50;
-}
-
-@media (min-width: 1024px) {
-  .landing-nav {
-    top: 20px;
-    left: 40px;
-    right: 40px;
-  }
-}
-
-/* Glassmorphic bar: translucent, blurred, hairline-bordered. */
-.landing-nav-glass {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 10px 12px 10px 22px;
-  border-radius: 16px;
-  background: rgb(255 255 255 / 0.08);
-  border: 1px solid rgb(255 255 255 / 0.15);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.08) inset,
-    0 8px 32px rgb(0 0 0 / 0.35);
+  padding: 18px 24px;
+}
+
+@media (min-width: 1024px) {
+  .landing-nav {
+    padding: 22px 48px;
+  }
 }
 
 .landing-logo {
-  color: var(--l-fg);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Josefin Sans', system-ui, -apple-system, sans-serif;
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--text);
   text-decoration: none;
 }
 
@@ -1870,46 +1852,34 @@ body.landing-page main {
 @media (min-width: 768px) {
   .landing-links {
     display: flex;
-    gap: 32px;
+    gap: 28px;
   }
 }
 
 .landing-links a {
-  color: var(--l-muted);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  color: #4b5563;
+  font-size: 14px;
   text-decoration: none;
   transition: color 150ms ease-out;
 }
 
 .landing-links a:hover {
-  color: var(--l-fg);
+  color: var(--text);
 }
 
 .landing-nav-cta {
-  display: none;
-  color: var(--l-fg);
-  background: rgb(255 255 255 / 0.12);
-  border: 1px solid rgb(255 255 255 / 0.18);
-  font-size: 12px;
+  color: #fff;
+  background: #111827;
+  font-size: 13px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
   text-decoration: none;
-  border-radius: 8px;
-  padding: 12px 24px;
+  border-radius: 999px;
+  padding: 10px 20px;
   transition: background-color 150ms ease-out, transform 150ms ease-out;
 }
 
-@media (min-width: 768px) {
-  .landing-nav-cta {
-    display: inline-flex;
-  }
-}
-
 .landing-nav-cta:hover {
-  background: rgb(255 255 255 / 0.22);
+  background: #1f2937;
 }
 
 .landing-nav-cta:active {
@@ -1917,152 +1887,181 @@ body.landing-page main {
 }
 
 .landing-hero {
-  position: relative;
-  min-height: 100vh;
+  flex: 1;
   display: flex;
-  align-items: flex-end;
-  background: var(--l-bg);
-  overflow: hidden;
-}
-
-.landing-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Legibility scrim: darkest where the bottom-left copy sits. */
-.landing-overlay {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to top, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.1) 45%),
-    rgb(0 0 0 / 0.2);
-  z-index: 1;
-  pointer-events: none;
-}
-
-.landing-content {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  max-width: 42rem;
-  padding: 128px 24px 40px;
-}
-
-@media (min-width: 768px) {
-  .landing-content {
-    padding: 128px 40px 40px;
-  }
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 24px 0;
+  min-height: 0;
 }
 
 .landing-title {
-  font-size: clamp(3rem, 8vw, 6rem);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.05em;
-  text-transform: uppercase;
-  color: var(--l-fg);
-  margin: 0 0 8px;
+  font-family: 'Josefin Sans', system-ui, -apple-system, sans-serif;
+  font-size: clamp(42px, 6vw, 68px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+  color: var(--text);
+  margin: 16px 0 28px;
 }
 
-@media (min-width: 768px) {
-  .landing-title {
-    margin-bottom: 16px;
-  }
+/* The seal prompt: a search-style pill that hands off to the app. */
+.landing-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(540px, 100%);
+  background: #fff;
+  border: 1px solid rgb(17 24 39 / 0.06);
+  border-radius: 999px;
+  padding: 7px 7px 7px 24px;
+  box-shadow: 0 10px 30px rgb(30 64 120 / 0.1);
+  margin-bottom: 26px;
 }
 
-.landing-title span {
-  color: var(--l-primary);
+.landing-prompt input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  border: none;
+  outline: none;
+  background: none;
+  padding: 8px 0;
+}
+
+.landing-prompt input::placeholder {
+  color: #9ca3af;
+}
+
+.landing-prompt button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  font-size: 17px;
+  color: #fff;
+  background: #111827;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.landing-prompt button:hover {
+  background: #1f2937;
+}
+
+.landing-prompt button:active {
+  transform: scale(0.94);
 }
 
 .landing-sub {
-  color: hsl(0 0% 96% / 0.8);
-  font-size: clamp(1.125rem, 2.5vw, 1.875rem);
-  font-weight: 300;
-  margin: 0 0 12px;
-}
-
-@media (min-width: 768px) {
-  .landing-sub {
-    margin-bottom: 24px;
-  }
-}
-
-.landing-desc {
-  color: var(--l-muted);
-  font-size: clamp(0.875rem, 1.5vw, 1.25rem);
-  font-weight: 300;
+  max-width: 480px;
+  color: #4b5563;
+  font-size: 16px;
   line-height: 1.6;
-  margin: 0 0 16px;
-}
-
-@media (min-width: 768px) {
-  .landing-desc {
-    margin-bottom: 32px;
-  }
+  margin: 0 0 26px;
 }
 
 .landing-ctas {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
-  font-weight: 700;
+  margin-bottom: 8px;
 }
 
 .landing-btn {
-  pointer-events: auto;
   display: inline-flex;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: none;
-  border-radius: 2px;
-  padding: 12px 24px;
+  border-radius: 999px;
+  padding: 13px 26px;
   cursor: pointer;
-  transition: filter 150ms ease-out, transform 150ms ease-out;
-}
-
-@media (min-width: 768px) {
-  .landing-btn {
-    padding: 16px 32px;
-  }
+  transition: background-color 150ms ease-out, transform 150ms ease-out;
 }
 
 .landing-btn:active {
   transform: scale(0.97);
 }
 
-.landing-btn-primary {
-  background: var(--l-primary);
+.landing-btn-dark {
+  background: #111827;
   color: #fff;
 }
 
-.landing-btn-primary:hover {
-  filter: brightness(1.1);
+.landing-btn-dark:hover {
+  background: #1f2937;
 }
 
 .landing-btn-light {
-  background: #fff;
-  color: hsl(0 0% 10%);
+  background: rgb(255 255 255 / 0.75);
+  color: var(--text);
+  border: 1px solid rgb(17 24 39 / 0.08);
 }
 
 .landing-btn-light:hover {
-  filter: brightness(0.9);
+  background: #fff;
 }
 
-.landing-trust {
-  color: hsl(0 0% 60% / 0.6);
-  font-size: 12px;
-  font-weight: 300;
-  margin: 16px 0 0;
+/* Browser frame: rises from the bottom edge, cropped by the fold. */
+.landing-frame {
+  width: min(920px, 94%);
+  margin-top: 40px;
+  border-radius: 14px 14px 0 0;
+  overflow: hidden;
+  box-shadow: 0 -2px 60px rgb(15 35 70 / 0.22);
 }
 
-@media (min-width: 768px) {
-  .landing-trust {
-    margin-top: 24px;
-  }
+.landing-frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #1f2430;
+  padding: 11px 14px;
+  position: relative;
+}
+
+.landing-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.landing-dot-red {
+  background: #f5655b;
+}
+
+.landing-dot-yellow {
+  background: #f6bd3a;
+}
+
+.landing-dot-green {
+  background: #43c645;
+}
+
+.landing-frame-url {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: #9ca3af;
+  background: rgb(255 255 255 / 0.08);
+  border-radius: 6px;
+  padding: 3px 14px;
+}
+
+.landing-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
 }
 
 @keyframes landing-fade-up {
@@ -2079,8 +2078,18 @@ body.landing-page main {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .landing-content > * {
+  .landing-hero > * {
     opacity: 0;
     animation: landing-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-title {
+    margin-top: 8px;
+  }
+
+  .landing-frame {
+    margin-top: 28px;
   }
 }
