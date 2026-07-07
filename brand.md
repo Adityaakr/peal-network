@@ -17,7 +17,8 @@ _Status: active_ (renamed from bte 2026-07-07; design spec from the original bui
 
 Sentence case everywhere, including headings. Short, declarative, technical,
 no hype, no emoji in UI, **no em-dashes anywhere in UI copy** (use periods or
-commas). Trust banner is permanent: "v0. dealer-trusted setup. testnet toy."
+commas). No trust banner in the UI (removed 2026-07-07); the v0 trust caveat
+lives in the README and docs instead.
 
 ## Color
 

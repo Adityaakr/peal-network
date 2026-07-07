@@ -30,19 +30,6 @@ body {
 
 /* ---------- chrome ---------- */
 
-.banner {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: 6px 24px;
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
-  letter-spacing: 0.02em;
-}
-
 .site-header {
   max-width: 960px;
   margin: 0 auto;
