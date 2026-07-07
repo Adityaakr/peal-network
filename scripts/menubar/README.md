@@ -1,4 +1,4 @@
-# bte in your menu bar
+# OPEN in your menu bar
 
 A SwiftBar / xbar plugin that shows a live countdown for one seal in the
 macOS menu bar: `🔒 2h 14m` while sealed, `🔓 revealed` when it opens.

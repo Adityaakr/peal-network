@@ -8,9 +8,10 @@ const POLL_MS = 2000;
 export function renderHome(root: HTMLElement): () => void {
   root.innerHTML = `
     <section class="hero">
-      <h1 class="hero-title">seal now. reveal on cue.</h1>
-      <p class="hero-sub">encrypt anything to this committee. when the cue fires, the whole
-      batch becomes public at once. nothing is readable early, not even by the operators.</p>
+      <h1 class="hero-title">commit-reveal without the second transaction.</h1>
+      <p class="hero-sub">add fair reveals to your dapp in minutes. seal anything to this
+      committee; when the cue fires, the whole batch opens at once, guaranteed. nothing is
+      readable early, not even by the operators.</p>
       <div id="playground"></div>
     </section>
     <section class="section" id="seals-section" hidden>

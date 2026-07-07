@@ -1,13 +1,22 @@
-# Brand: bte
+# Brand: OPEN
 
-_Status: active_ (source: phase-5 design spec in the original build prompt)
+_Status: active_ (renamed from bte 2026-07-07; design spec from the original build prompt)
+
+## Naming
+
+- Product name: **OPEN**, the open programmable encryption network.
+- The explorer is **Open Explorer**.
+- Identity line: "the guaranteed reveal network"
+- Headline: "commit-reveal without the second transaction."
+- Speed line: "add fair reveals to your dapp in minutes."
+- Internal names stay: bte-* crates, bte-sdk on npm, /v0 API, wire magic BTE0.
+  OPEN is the product; bte is the plumbing.
 
 ## Voice
 
 Sentence case everywhere, including headings. Short, declarative, technical,
 no hype, no emoji in UI, **no em-dashes anywhere in UI copy** (use periods or
-commas). Headline: "seal now. reveal on cue." Trust banner is permanent:
-"v0. dealer-trusted setup. testnet toy."
+commas). Trust banner is permanent: "v0. dealer-trusted setup. testnet toy."
 
 ## Color
 
