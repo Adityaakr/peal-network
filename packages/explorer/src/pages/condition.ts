@@ -15,6 +15,7 @@ import {
   fmtUnix,
   payloadBytes,
   statusChip,
+  tagLabel,
   truncMiddle,
 } from '../util';
 
@@ -139,9 +140,11 @@ function metaCard(c: ConditionDetail): string {
       : c.height != null
         ? `block ${c.height} on chain ${c.chain_id}`
         : '<span class="muted">unknown</span>';
+  const what = tagLabel(c.tag);
   return `
     <dl class="stats">
       <div><dt>status</dt><dd>${statusChip(c.status)}</dd></div>
+      ${what ? `<div><dt>what</dt><dd>${esc(what)}</dd></div>` : ''}
       <div><dt>kind</dt><dd>${esc(c.kind)}</dd></div>
       <div><dt>fires at</dt><dd>${fires}</dd></div>
       <div><dt>sealed</dt><dd class="num">${c.real_count}<span class="muted"> real / ${c.ciphertext_count} total</span></dd></div>

@@ -40,6 +40,14 @@ export function statusChip(status: string): string {
   return `<span class="chip chip-${esc(status)}">${esc(status)}</span>`;
 }
 
+/** Human label for a condition tag set by the playground. */
+export function tagLabel(tag: string | null | undefined): string {
+  if (tag === 'round:bid') return 'bid round';
+  if (tag === 'round:vote') return 'vote round';
+  if (tag === 'capsule') return 'time capsule';
+  return tag ?? '';
+}
+
 export function fmtCountdown(secs: number): string {
   if (secs <= 0) return 'firing now';
   const d = Math.floor(secs / 86400);

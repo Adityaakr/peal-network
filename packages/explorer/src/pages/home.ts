@@ -1,7 +1,7 @@
 import { getCommittee, listConditions, type ConditionSummary } from '../api';
 import { forgetSeal, listSeals, markSealRevealed, type WatchedSeal } from '../attention';
 import { renderPlayground } from '../playground';
-import { esc, fmtCountdown, fmtRelative, statusChip, truncMiddle } from '../util';
+import { esc, fmtCountdown, fmtRelative, statusChip, tagLabel, truncMiddle } from '../util';
 
 const POLL_MS = 2000;
 
@@ -57,12 +57,13 @@ export function renderHome(root: HTMLElement): () => void {
   });
 
   let lastConditions: ConditionSummary[] = [];
+  let listLoaded = false;
   let lastSealsHtml = '';
   const renderSeals = () => {
     const seals = listSeals();
     sealsSection.hidden = seals.length === 0;
     if (seals.length === 0) return;
-    const html = sealsTable(seals, lastConditions);
+    const html = sealsTable(seals, lastConditions, listLoaded);
     if (html !== lastSealsHtml) {
       sealsEl.innerHTML = html;
       lastSealsHtml = html;
@@ -74,6 +75,7 @@ export function renderHome(root: HTMLElement): () => void {
     try {
       const conditions = await listConditions();
       lastConditions = conditions;
+      listLoaded = true;
       // Anything the network says is revealed gets flagged in the local list.
       for (const c of conditions) {
         if (c.status === 'revealed') markSealRevealed(c.id);
@@ -127,7 +129,11 @@ async function loadCommittee(committeeEl: HTMLElement): Promise<void> {
   }
 }
 
-function sealsTable(seals: WatchedSeal[], conditions: ConditionSummary[]): string {
+function sealsTable(
+  seals: WatchedSeal[],
+  conditions: ConditionSummary[],
+  listLoaded: boolean,
+): string {
   const now = Math.floor(Date.now() / 1000);
   const byId = new Map(conditions.map((c) => [c.id, c]));
   const rows = seals
@@ -135,8 +141,13 @@ function sealsTable(seals: WatchedSeal[], conditions: ConditionSummary[]): strin
       const live = byId.get(s.conditionId);
       const revealed = s.revealed || live?.status === 'revealed';
       const firesAt = live?.fires_at ?? s.firesAt;
+      // The devnet wipes on reset: a pending seal whose condition the
+      // coordinator no longer knows is dead, not counting down.
+      const gone = listLoaded && !live && !revealed;
       let state: string;
-      if (revealed) {
+      if (gone) {
+        state = `<span class="chip chip-pending" title="the devnet was reset since this was sealed; the condition no longer exists">gone, devnet reset</span>`;
+      } else if (revealed) {
         state = `<span class="chip chip-revealed">revealed</span>`;
       } else if (live?.status === 'stalled') {
         state = `<span class="chip chip-stalled">stalled</span>`;
@@ -175,8 +186,10 @@ function conditionsTable(conditions: ConditionSummary[]): string {
     .map((c) => {
       const fires =
         c.fires_at != null ? esc(fmtRelative(c.fires_at)) : '<span class="muted">at block</span>';
+      const what = tagLabel(c.tag);
       return `<tr>
         <td><a class="mono link" href="#/condition/${encodeURIComponent(c.id)}">${esc(truncMiddle(c.id, 14, 6))}</a></td>
+        <td>${what ? esc(what) : '<span class="muted">·</span>'}</td>
         <td>${statusChip(c.status)}</td>
         <td>${fires}</td>
         <td class="num">${c.real_count}<span class="muted"> / ${c.ciphertext_count}</span></td>
@@ -186,7 +199,7 @@ function conditionsTable(conditions: ConditionSummary[]): string {
     .join('');
   return `<table>
     <thead><tr>
-      <th>condition</th><th>status</th><th>fires</th>
+      <th>condition</th><th>what</th><th>status</th><th>fires</th>
       <th>sealed</th><th>created</th>
     </tr></thead>
     <tbody>${rows}</tbody>
