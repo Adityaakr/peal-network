@@ -921,7 +921,7 @@ tbody tr:hover {
 .scenario-picker-head {
   display: flex;
   align-items: baseline;
-  gap: 10px 18px;
+  gap: 6px;
   flex-wrap: wrap;
   margin-bottom: 14px;
 }
