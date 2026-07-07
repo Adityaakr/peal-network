@@ -30,7 +30,6 @@ export function renderLanding(root: HTMLElement): () => void {
 
         <div class="landing-ctas" style="animation-delay:0.6s">
           <a class="landing-btn landing-btn-dark" href="#/app">Launch App</a>
-          <a class="landing-btn landing-btn-light" href="#/protocol">Read the Protocol</a>
         </div>
 
         <div class="landing-frame" style="animation-delay:0.75s">
