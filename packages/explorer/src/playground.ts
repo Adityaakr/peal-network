@@ -111,7 +111,7 @@ function parseEntry(ctHash: string, text: string): Entry {
 
 export function renderPlayground(host: HTMLElement): () => void {
   const client = new BteClient({ url: API_BASE });
-  let scenario: Scenario = 'bid';
+  let scenario: Scenario = 'note';
   let run: PlaygroundRun | null = null;
   let pollTimer: number | undefined;
   let tickTimer: number | undefined;
@@ -123,12 +123,25 @@ export function renderPlayground(host: HTMLElement): () => void {
   host.innerHTML = `
     <div class="playground card" id="pg">
       <form id="pg-form" autocomplete="off">
-        <div class="chips" role="group" aria-label="pick a scenario">
-          <button type="button" class="chip-btn" data-scenario="bid" aria-pressed="true">sealed bid</button>
-          <button type="button" class="chip-btn" data-scenario="vote" aria-pressed="false">hidden vote</button>
-          <button type="button" class="chip-btn" data-scenario="note" aria-pressed="false">time capsule</button>
+        <div class="scenario-picker-head">
+          <p class="scenario-kicker">try Peal</p>
+          <p class="scenario-prompt">choose a use case, add something private, then watch it reveal on cue.</p>
         </div>
-        <div id="pg-fields"></div>
+        <div class="chips" role="tablist" aria-label="choose a use case">
+          <button type="button" class="chip-btn" id="scenario-bid" role="tab" data-scenario="bid"
+                  aria-selected="false" aria-controls="pg-fields" tabindex="-1">
+            <span class="scenario-number" aria-hidden="true">1</span><span>sealed bid</span>
+          </button>
+          <button type="button" class="chip-btn" id="scenario-vote" role="tab" data-scenario="vote"
+                  aria-selected="false" aria-controls="pg-fields" tabindex="-1">
+            <span class="scenario-number" aria-hidden="true">2</span><span>hidden vote</span>
+          </button>
+          <button type="button" class="chip-btn" id="scenario-note" role="tab" data-scenario="note"
+                  aria-selected="true" aria-controls="pg-fields" tabindex="0">
+            <span class="scenario-number" aria-hidden="true">3</span><span>time capsule</span>
+          </button>
+        </div>
+        <div id="pg-fields" role="tabpanel" aria-labelledby="scenario-note"></div>
         <p class="field-hint" id="pg-hint"></p>
         <p class="field-hint" id="pg-round"></p>
         <p class="error" id="pg-error" hidden></p>
@@ -185,10 +198,19 @@ export function renderPlayground(host: HTMLElement): () => void {
     if (scenario === 'bid') {
       fieldsEl.innerHTML = `
         <div class="pg-row">
-          <input id="pg-name" name="name" type="text" maxlength="24" placeholder="your name" aria-label="your name" />
-          <input id="pg-amount" name="amount" type="number" min="1" max="1000000" required
-                 placeholder="your bid" aria-label="your bid" />
-          ${roundSelect()}
+          <label class="pg-control pg-control-name" for="pg-name">
+            <span class="field-label">your name</span>
+            <input id="pg-name" name="name" type="text" maxlength="24" placeholder="Ada" autocomplete="name" />
+          </label>
+          <label class="pg-control pg-control-number" for="pg-amount">
+            <span class="field-label">your bid</span>
+            <input id="pg-amount" name="amount" type="text" inputmode="decimal" required
+                   placeholder="100" aria-label="your bid" />
+          </label>
+          <label class="pg-control pg-control-select" for="pg-round-secs">
+            <span class="field-label">round length</span>
+            ${roundSelect()}
+          </label>
           <button type="submit" class="btn btn-primary" id="pg-seal">seal my bid</button>
         </div>
         ${roundUntilRow()}`;
@@ -198,12 +220,21 @@ export function renderPlayground(host: HTMLElement): () => void {
     } else if (scenario === 'vote') {
       fieldsEl.innerHTML = `
         <div class="pg-row">
-          <input id="pg-name" name="name" type="text" maxlength="24" placeholder="your name" aria-label="your name" />
-          <select id="pg-choice" aria-label="your vote">
-            <option value="yes">vote yes</option>
-            <option value="no">vote no</option>
-          </select>
-          ${roundSelect()}
+          <label class="pg-control pg-control-name" for="pg-name">
+            <span class="field-label">your name</span>
+            <input id="pg-name" name="name" type="text" maxlength="24" placeholder="Ada" autocomplete="name" />
+          </label>
+          <label class="pg-control pg-control-select" for="pg-choice">
+            <span class="field-label">your vote</span>
+            <select id="pg-choice">
+              <option value="yes">vote yes</option>
+              <option value="no">vote no</option>
+            </select>
+          </label>
+          <label class="pg-control pg-control-select" for="pg-round-secs">
+            <span class="field-label">round length</span>
+            ${roundSelect()}
+          </label>
           <button type="submit" class="btn btn-primary" id="pg-seal">seal my vote</button>
         </div>
         ${roundUntilRow()}`;
@@ -213,21 +244,27 @@ export function renderPlayground(host: HTMLElement): () => void {
     } else {
       fieldsEl.innerHTML = `
         <div class="pg-row">
-          <input id="pg-secret" name="secret" type="text" maxlength="200" required
-                 placeholder="a prediction, a confession, a launch date…" aria-label="your secret" />
-          <select id="pg-delay" aria-label="reveal delay">
-            <option value="30">reveal in 30s</option>
-            <option value="60" selected>reveal in 60s</option>
-            <option value="120">reveal in 2m</option>
-            <option value="600">reveal in 10m</option>
-            <option value="3600">reveal in 1h</option>
-            <option value="7200">reveal in 2h</option>
-            <option value="10800">reveal in 3h</option>
-            <option value="21600">reveal in 6h</option>
-            <option value="43200">reveal in 12h</option>
-            <option value="86400">reveal in 24h</option>
-            <option value="custom">pick a date…</option>
-          </select>
+          <label class="pg-control pg-control-grow" for="pg-secret">
+            <span class="field-label">what should stay sealed?</span>
+            <input id="pg-secret" name="secret" type="text" maxlength="200" required
+                   placeholder="a prediction, a confession, a launch date…" />
+          </label>
+          <label class="pg-control pg-control-select" for="pg-delay">
+            <span class="field-label">reveal timing</span>
+            <select id="pg-delay">
+              <option value="30">reveal in 30s</option>
+              <option value="60" selected>reveal in 60s</option>
+              <option value="120">reveal in 2m</option>
+              <option value="600">reveal in 10m</option>
+              <option value="3600">reveal in 1h</option>
+              <option value="7200">reveal in 2h</option>
+              <option value="10800">reveal in 3h</option>
+              <option value="21600">reveal in 6h</option>
+              <option value="43200">reveal in 12h</option>
+              <option value="86400">reveal in 24h</option>
+              <option value="custom">pick a date…</option>
+            </select>
+          </label>
           <button type="submit" class="btn btn-primary" id="pg-seal">seal it</button>
         </div>
         <div class="pg-row pg-until-row" id="pg-until-row" hidden>
@@ -301,14 +338,35 @@ export function renderPlayground(host: HTMLElement): () => void {
       : `starts a new ${forScenario} round with the length you pick. open this page in another tab to compete.`;
   }
 
-  host.querySelectorAll<HTMLButtonElement>('.chip-btn').forEach((btn) => {
+  const scenarioButtons = Array.from(host.querySelectorAll<HTMLButtonElement>('.chip-btn'));
+
+  function selectScenario(btn: HTMLButtonElement): void {
+    scenario = btn.dataset.scenario as Scenario;
+    scenarioButtons.forEach((b) => {
+      const selected = b === btn;
+      b.setAttribute('aria-selected', String(selected));
+      b.tabIndex = selected ? 0 : -1;
+    });
+    fieldsEl.setAttribute('aria-labelledby', btn.id);
+    errorEl.hidden = true;
+    renderFields();
+  }
+
+  scenarioButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      scenario = btn.dataset.scenario as Scenario;
-      host.querySelectorAll<HTMLButtonElement>('.chip-btn').forEach((b) => {
-        b.setAttribute('aria-pressed', String(b === btn));
-      });
-      errorEl.hidden = true;
-      renderFields();
+      selectScenario(btn);
+    });
+    btn.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const current = scenarioButtons.indexOf(btn);
+      const next = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? scenarioButtons.length - 1
+          : (current + (event.key === 'ArrowRight' ? 1 : -1) + scenarioButtons.length) % scenarioButtons.length;
+      scenarioButtons[next].focus();
+      selectScenario(scenarioButtons[next]);
     });
   });
 
