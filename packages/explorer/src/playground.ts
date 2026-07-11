@@ -16,6 +16,7 @@ import {
 } from './api';
 import { markSealRevealed, rememberSeal } from './attention';
 import { createCeremony, type Ceremony } from './ceremony';
+import { takeSealDraft } from './draft';
 import { encryptPrivate, isPrivatePayload } from './privacy';
 import { decodePayload, esc, fmtCountdown, payloadBytes, truncMiddle } from './util';
 
@@ -379,6 +380,23 @@ export function renderPlayground(host: HTMLElement): () => void {
   });
 
   renderFields();
+
+  // A visitor who typed into the landing prompt already answered "what should
+  // stay sealed?" — land them in the capsule composer with it filled in, ready
+  // to seal, instead of asking the same question twice.
+  const draft = takeSealDraft();
+  if (draft) {
+    const noteBtn = host.querySelector<HTMLButtonElement>('#scenario-note');
+    if (scenario !== 'note' && noteBtn) selectScenario(noteBtn);
+    const secretEl = fieldsEl.querySelector<HTMLInputElement>('#pg-secret');
+    if (secretEl) {
+      secretEl.value = draft.slice(0, secretEl.maxLength);
+      secretEl.focus();
+      secretEl.setSelectionRange(secretEl.value.length, secretEl.value.length);
+      host.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
   const roundTimer = window.setInterval(() => {
     if (!run) void updateRoundNote();
   }, 5000);

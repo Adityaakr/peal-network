@@ -2,6 +2,8 @@
 // system, a seal-prompt pill that hands off to the app, and the real
 // explorer screenshot (public/app-preview.png) inside a browser frame
 // rising from the bottom of the viewport.
+import { putSealDraft } from '../draft';
+
 export function renderLanding(root: HTMLElement): () => void {
   const previousTitle = document.title;
   document.title = 'Peal Network. Programmable disclosure';
@@ -20,7 +22,7 @@ export function renderLanding(root: HTMLElement): () => void {
         <h1 class="landing-title" style="animation-delay:0.15s">Seal now.<br />Reveal on cue.</h1>
 
         <form class="landing-prompt" style="animation-delay:0.3s" aria-label="Seal something">
-          <input type="text" id="landing-seal-input" placeholder="What should stay sealed?" autocomplete="off" />
+          <input type="text" id="landing-seal-input" placeholder="What should stay sealed?" maxlength="200" autocomplete="off" />
           <button type="submit" aria-label="Seal it in the app">&#8593;</button>
         </form>
 
@@ -48,11 +50,15 @@ export function renderLanding(root: HTMLElement): () => void {
     </div>
   `;
 
-  // The prompt is a handoff: whatever the visitor types rides the hash into
-  // the app, where the playground waits with the real seal flow.
+  // The prompt is a handoff: whatever the visitor types is carried into the
+  // app's time-capsule composer, so they answer "what should stay sealed?"
+  // once rather than typing it again on the other side.
   const form = root.querySelector<HTMLFormElement>('.landing-prompt')!;
+  const input = root.querySelector<HTMLInputElement>('#landing-seal-input')!;
   const onSubmit = (event: Event) => {
     event.preventDefault();
+    const text = input.value.trim();
+    if (text) putSealDraft(text);
     location.hash = '#/app';
   };
   form.addEventListener('submit', onSubmit);
