@@ -9,10 +9,10 @@ export function renderHome(root: HTMLElement): () => void {
   root.innerHTML = `
     <section class="hero">
       <h1 class="hero-title">encryption with a release date</h1>
-      <p class="hero-sub">add fair reveals to your dapp in minutes. seal data to the Peal
-      committee; when the cue fires, the whole batch opens at once, guaranteed. nothing
-      readable early, not even by operators. every share verified in public, every reveal
-      on the record.</p>
+      <p class="hero-sub">secrets that open themselves add them to your dapp in minutes.
+      seal data to a cue (a time, a block, a condition, an event) and when it fires, the
+      whole batch opens at once: no second transaction, no selective reveal. built on
+      batched threshold encryption; decentralized operator committee on the roadmap.</p>
       <div id="playground"></div>
     </section>
     <section class="section" id="seals-section" hidden>
