@@ -452,12 +452,25 @@ fixed: approve the POOL not the builder; serialize per-key sends (nonce races);
 /state must be wei; settler must snapshot pre-existing reveals (stale JSON-payload
 mempool conditions from the old simulation revert executeBatch).
 
-REMAINING (blocked on user funding the 3 Tempo addresses via faucet):
-- Deploy to Tempo (CHAIN_ID=42431, RPC rpc.moderato.tempo.xyz), write
-  deployments/42431.json with explorerBase=https://explore.testnet.tempo.xyz.
-- Re-run the agents with CHAIN_ID=42431 + .secrets keys; point explorer
-  VITE_RELAYER_URL at the deployed relayer. Everything else is validated.
-- Tempo gas is stablecoin (pathUSD), not native; accounts need faucet pathUSD.
+LIVE ON TEMPO (2026-07-12). Deployed to Moderato (chain 42431), verified in a
+browser with clickable explorer links. Live addresses in deployments/42431.json:
+usdc 0x57a72cff.., eth 0x97c4bfa8.., publicPool 0x29afed03..,
+publicBuilder 0x1a3dcf7f.., pealPool 0x652128057.., pealMempool 0x490dcec0..
+Coordinator/settler = deployer 0xe27d43CE. Explorer: https://explore.testnet.tempo.xyz.
+pathUSD (gas token) = 0x20c0..0000; the 3 keys hold ~2M pathUSD each.
+
+Tempo deploy gotchas (SOLVED): eth_estimateGas under-provisions (Tempo charges
+~1000 gas/byte deploy + 250k/new slot); deploy needs
+`--gas-estimate-multiplier 2000`, agents pass TX_GAS=30000000 via writeGas.
+Settler double-submit race fixed (mark done before first await).
+
+Run live: agents with CHAIN_ID=42431 TX_GAS=30000000 + .secrets keys, settler
+COORDINATOR_URL=live devnet; explorer VITE_RELAYER_URL defaults to :8799, seals
+into the live devnet coordinator (same one the settler watches).
+
+STILL LOCAL-ONLY (not blocking): the relayer/searcher/settler run on this
+machine, not hosted. To make the public URL fully live, host the 3 agents
+(e.g. Railway) and set the explorer's VITE_RELAYER_URL to the hosted relayer.
 
 ## APT / Move support (LATER, not now)
 Aptos is Move-VM, not EVM - our Solidity contracts + EVM SDK path do not run on
