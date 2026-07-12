@@ -428,6 +428,37 @@ Honest gap unchanged: dealer-trusted committee, operators don't verify the cue,
 coordinator provides the ordered plaintexts to executeBatch. State on the page.
 Contracts + settlement are real on Tempo; decentralisation is not yet.
 
+### Build status (2026-07-12) — VALIDATED end-to-end on anvil + live coordinator
+DONE and committed (branch encrypted-mempool-playground):
+- contracts/ : DemoToken, SwapPool, PublicBuilder, PealMempool + DeployMempool
+  script. 23 Foundry tests green; Solidity merkle cross-checked vs python oracle.
+- packages/mempool-agents/ : relayer (sponsored no-wallet gateway + read API),
+  searcher (real sandwich bot, its own key), settler (watches coordinator
+  reveals -> executeBatch). Shared bigint sandwich sizing mirrors the model.
+- packages/explorer #/encrypted-mempool : rebuilt to drive the real chain
+  (seal -> commit -> public order -> poll both to settlement), block-explorer
+  links, honest trust-gap note. Old float amm.ts deleted.
+
+Proven in a real browser (Playwright): $50k swap -> public victim pushed to
+15.7394 ETH (its exact 0.5% floor), searcher took $212.99 on-chain; SAME swap
+sealed -> settled by PealMempool.executeBatch at the cue (30.5s) for 15.8186 ETH
+(full quote), searcher $0. Real tx refs on both lanes, no page errors.
+
+Local stack wiring that worked: anvil :8546 (chain 31337), deploy addresses in
+packages/mempool-agents/deployments/31337.json, relayer :8799, searcher, settler
+with COORDINATOR_URL=live devnet (bte-explorer-production). Explorer dev server
+:5199 with BTE_URL=live devnet; VITE_RELAYER_URL defaults to :8799. Gotchas
+fixed: approve the POOL not the builder; serialize per-key sends (nonce races);
+/state must be wei; settler must snapshot pre-existing reveals (stale JSON-payload
+mempool conditions from the old simulation revert executeBatch).
+
+REMAINING (blocked on user funding the 3 Tempo addresses via faucet):
+- Deploy to Tempo (CHAIN_ID=42431, RPC rpc.moderato.tempo.xyz), write
+  deployments/42431.json with explorerBase=https://explore.testnet.tempo.xyz.
+- Re-run the agents with CHAIN_ID=42431 + .secrets keys; point explorer
+  VITE_RELAYER_URL at the deployed relayer. Everything else is validated.
+- Tempo gas is stablecoin (pathUSD), not native; accounts need faucet pathUSD.
+
 ## APT / Move support (LATER, not now)
 Aptos is Move-VM, not EVM - our Solidity contracts + EVM SDK path do not run on
 it. A real APT target = a from-scratch Move rewrite of DemoToken/SwapPool/
