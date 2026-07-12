@@ -521,6 +521,21 @@ the user liked: slot grid, per-operator pairing checks, merkle root, batch json
 download). Flow now reads as one uniform system: outcome -> difference -> how
 Peal did it -> verify.
 
+### Peal deep-dive v2: 4-step animated pipeline (2026-07-12, DONE)
+User: the 2 process cards were "still fucked up / not professional"; wanted 4
+structured sections, real 3D ANIMATIONS showing what happens, trust copy, and NO
+em-dashes (brand rule I had violated). Rebuilt as "how Peal keeps your order
+private": a vertical pipeline with a numbered timeline rail and 4 cards, each
+with a continuously LOOPING CSS-3D animation + trust-first copy + real artifacts:
+1 encrypted on your device (card flips plaintext->ciphertext), 2 hidden inside a
+batch (order drops into 64-slot grid of decoys), 3 sealed to a distributed
+committee (shards fly core->5 operators), 4 revealed & proven on-chain (quorum
+shares fly back, core opens green + on-chain badge). Step 4 links to
+#/condition/:id. Scenes: visuals.ts createFxEncrypt/Batch/Commit/Reveal (loop via
+CSS, no JS state). ALL em-dashes removed from mempool.ts; placeholders use "·".
+FLOW_COPY holds the 4 trust paragraphs. Animations decoupled from swap state so
+they always show motion; real data fills each step's data rows as it lands.
+
 ### Tempo-under-load learnings (robustness)
 Rapid concurrent test swaps wedged agent nonces (a stalled tx blocks everything
 behind it; symptom: relayer /commit hangs forever). Fixes applied: TX_GAS
