@@ -15,7 +15,9 @@ import { chainFor, loadDeployment, publicClient, requireKey, walletFor, writeGas
 const d = loadDeployment();
 const pub = publicClient(d);
 const wallet = walletFor(d, requireKey('DEPLOYER_PRIVATE_KEY')); // deployer == coordinator
-const COORD = process.env.COORDINATOR_URL ?? 'http://localhost:8080';
+// Strip trailing slashes so COORDINATOR_URL="https://host/" does not become
+// a double-slash "https://host//v0/..." request (which 404s to an empty body).
+const COORD = (process.env.COORDINATOR_URL ?? 'http://localhost:8080').replace(/\/+$/, '');
 const TAG = 'mempool';
 const POLL_MS = 1500;
 

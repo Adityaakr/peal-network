@@ -5,7 +5,9 @@
 // it. The order rides through the real coordinator sealed, so the payload here
 // is what the committee opens and what the contract settles.
 
-const RELAYER = import.meta.env.VITE_RELAYER_URL ?? 'http://localhost:8799';
+// Strip a trailing slash so VITE_RELAYER_URL="https://host/" does not produce
+// double-slash "https://host//config" requests.
+const RELAYER = (import.meta.env.VITE_RELAYER_URL ?? 'http://localhost:8799').replace(/\/+$/, '');
 
 export interface MempoolConfig {
   chainId: number;
