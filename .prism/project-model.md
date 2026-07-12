@@ -486,6 +486,23 @@ src/keeper.ts, deployer key) that holds both pools at $3000/ETH so repeated demo
 swaps stay legible ($250k keeps getting sandwiched). Default swap $250k.
 Files: pages/mempool.ts, mempool/visuals.ts, mempool/chain.ts, style.css.
 
+### Logos + pair flip (2026-07-12, DONE)
+Real USDC (Circle mark) and ETH (diamond) inline-SVG logos replace the colour
+circles. The swap arrow is a flip button reversing the pair (USDC<->ETH); the
+whole flow is direction-aware (quote, seal baseToQuote, public order, result
+units, profit valuation, kept-USD). Contracts + searcher were already
+direction-agnostic. Verified both ways on Tempo.
+
+### Tempo-under-load learnings (robustness)
+Rapid concurrent test swaps wedged agent nonces (a stalled tx blocks everything
+behind it; symptom: relayer /commit hangs forever). Fixes applied: TX_GAS
+lowered 30M->8M (real calls need <1M; 30M was oversized), relayer waits receipts
+with a 60s timeout (waitReceipt) so a stall errors instead of hanging. To clear a
+wedge manually: `cast send <addr> --value 0 --nonce <stuck> --gas-price <high>
+--private-key ...` until latest==pending. The keeper can overshoot if a swap
+lands mid-reseed, but self-corrects next cycle. Normal single-user pacing
+(~1 swap/30s) does not trigger any of this.
+
 --- original notes ---
 ## (superseded) Encrypted-mempool page REDESIGN (2026-07-12, in progress)
 User wants a clean, engaging visual (current page too text-heavy). Direction:
