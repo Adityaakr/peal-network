@@ -340,22 +340,14 @@ export function renderMempool(root: HTMLElement): () => void {
     go.disabled = true;
     go.textContent = 'sending…';
 
-    // Reset both lanes to identical reserves, so the only difference between
-    // them is the sandwich, never independent pool drift.
-    await prepareSwap();
-
-    const { pealPool } = await getState();
-    const [rIn, rOut] = usdcToEth ? [pealPool.base, pealPool.quote] : [pealPool.quote, pealPool.base];
-    const amountIn = toWad(amount);
-    const fair = getAmountOut(amountIn, rIn, rOut);
-    const slip = SLIP_BPS[slipKey] ?? 50n;
-    const minOut = (fair * (10000n - slip)) / 10000n;
-    const midPrice = Number(fromWad(pealPool.base)) / Number(fromWad(pealPool.quote));
     const baseToQuote = usdcToEth;
     const recvUnit = recvToken();
     const payUnit = payToken();
+    const amountIn = toWad(amount);
 
-    // Transition: swap card out, comparison in.
+    // Transition immediately so the click feels instant. The on-chain pool
+    // reset then runs while the comparison view is already animating, instead
+    // of holding the button on "sending…" for the whole reset.
     const swapWrap = appEl.querySelector<HTMLElement>('#mp-swap-wrap')!;
     const compare = appEl.querySelector<HTMLElement>('#mp-compare')!;
     swapWrap.classList.add('is-out');
@@ -381,10 +373,32 @@ export function renderMempool(root: HTMLElement): () => void {
     pubFx.forEach((fx, i) => appEl.querySelector<HTMLElement>(`#mp-pviz-${i + 1}`)!.appendChild(fx.el));
     fxScenes.push(...pubFx);
     appEl.querySelector<HTMLElement>('#mp-pubflow')!.hidden = false;
-    fillPub12(amount, payUnit, recvUnit, fromWad(minOut));
 
     const publicRes = appEl.querySelector<HTMLElement>('#mp-res-public')!;
     const pealRes = appEl.querySelector<HTMLElement>('#mp-res-peal')!;
+    publicRes.innerHTML = laneStatus('preparing the pool…');
+    pealRes.innerHTML = laneStatus('preparing the pool…');
+
+    // Reset both lanes to identical reserves, so the only difference between
+    // them is the sandwich, never independent pool drift. If it fails, roll the
+    // swap card back rather than stranding the comparison view.
+    try {
+      await prepareSwap();
+    } catch (e) {
+      reset();
+      showError(e);
+      return;
+    }
+    if (dead) return;
+
+    const { pealPool } = await getState();
+    const [rIn, rOut] = usdcToEth ? [pealPool.base, pealPool.quote] : [pealPool.quote, pealPool.base];
+    const fair = getAmountOut(amountIn, rIn, rOut);
+    const slip = SLIP_BPS[slipKey] ?? 50n;
+    const minOut = (fair * (10000n - slip)) / 10000n;
+    const midPrice = Number(fromWad(pealPool.base)) / Number(fromWad(pealPool.quote));
+
+    fillPub12(amount, payUnit, recvUnit, fromWad(minOut));
     publicRes.innerHTML = laneStatus('the searcher is reading your order in the clear…');
     pealRes.innerHTML = laneStatus(`sealed. cue in ${ROUND_SECS}s. the searcher sees only a hash…`);
 

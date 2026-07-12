@@ -86,15 +86,21 @@ const TARGET_QUOTE = 300n * 10n ** 18n;
 /** Reset both pools to identical reserves. Called before each swap so the two
  * lanes start from the same state. */
 async function prepare() {
+  // Submit both pool resets back-to-back (the per-key serializer keeps their
+  // nonces in order), then wait for both receipts at once instead of blocking
+  // on the first before submitting the second. Halves the reset latency.
+  const hashes: `0x${string}`[] = [];
   for (const pool of [d.publicPool, d.pealPool]) {
-    const hash = await tx(() =>
-      wallet.writeContract({
-        address: pool, abi: swapPoolAbi, functionName: 'adminSetReserves',
-        args: [TARGET_BASE, TARGET_QUOTE], chain: chainFor(d), ...writeGas,
-      }),
+    hashes.push(
+      await tx(() =>
+        wallet.writeContract({
+          address: pool, abi: swapPoolAbi, functionName: 'adminSetReserves',
+          args: [TARGET_BASE, TARGET_QUOTE], chain: chainFor(d), ...writeGas,
+        }),
+      ),
     );
-    await waitReceipt(pub, hash);
   }
+  await Promise.all(hashes.map((h) => waitReceipt(pub, h)));
   return { ok: true };
 }
 
