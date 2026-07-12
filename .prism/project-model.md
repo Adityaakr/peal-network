@@ -508,6 +508,19 @@ direction-agnostic. Verified both ways on Tempo.
   explorer (addrUrl); "How does the sealing actually work?" explainer. /config
   now serves usdc/eth addresses; MempoolConfig gained usdc/eth + addrUrl().
 
+### Peal deep-dive as 3D process cards (2026-07-12, DONE)
+User: the flat 3-text-card "how Peal works" was "too bad"; wanted 2 sections
+LIKE the comparison lanes, with 3D visuals, more verifiable, clear links.
+Rebuilt as "inside the peal mempool": two cards uniform with the outcome lanes,
+each with a real CSS-3D scene (visuals.ts createBatchScene = your locked order
+among 63 faint decoys in a tilted 8x8 grid; createRevealScene = 5-operator ring
+animating sealed->proven, t lit green firing shares into a green check core) +
+the live artifacts. Card 2 has a prominent "verify the full batch — every slot,
+share & timing" link to #/condition/:id (the existing rich condition-detail page
+the user liked: slot grid, per-operator pairing checks, merkle root, batch json
+download). Flow now reads as one uniform system: outcome -> difference -> how
+Peal did it -> verify.
+
 ### Tempo-under-load learnings (robustness)
 Rapid concurrent test swaps wedged agent nonces (a stalled tx blocks everything
 behind it; symptom: relayer /commit hangs forever). Fixes applied: TX_GAS
