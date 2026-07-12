@@ -304,6 +304,63 @@ green. Contract: `spec/index.md`. Status + gates: `PROGRESS.md`, `REPORT.md`.
   playground URL in docs/launch.md.
 - Explorer: agent-built and gate-verified; do one human visual pass.
 
+## Encrypted mempool: feasibility + the /encrypted-mempool playground (2026-07-12)
+
+Measured, not guessed. `crates/bte-crypto/examples/mempool_scaling.rs` (n=5, t=3,
+200-byte payloads, single thread, laptop):
+
+| B | seal/tx | partial (per op) | pre_decrypt | combine+finalize |
+|---|---|---|---|---|
+| 64 | 0.41 ms | 1.1 ms | 228 ms | 35 ms |
+| 256 | 0.41 ms | 3.0 ms | 1.12 s | 143 ms |
+| 512 | 0.41 ms | 5.3 ms | 2.49 s | 290 ms |
+
+- An operator does ~5 ms of work and emits a 48-byte share to open a 512-tx
+  batch. That is the pitch, and it holds.
+- `pre_decrypt` needs only ciphertexts + params, so it starts the moment the
+  builder fixes an ordering and overlaps the publish + collect-shares round
+  trip. Only `combine + finalize` is on the critical path. B=256 on a 2s L2
+  fits today.
+- Differentiator vs Shutter: epoch keys OVER-DECRYPT (the released key opens
+  every tx encrypted to that epoch, included or not). BTE opens exactly the
+  committed batch. That is the CGPP motivation and it is true at Stage 0.
+
+BLOCKER, unresolved: setup. A mempool needs Shamir shares of tau^1..tau^n with
+nobody knowing tau. That is not a standard DKG (the secret is STRUCTURED, powers
+of tau) - it is an MPC over a product of contributions. Ethereum's KZG ceremony
+solves the public-powers half only. Answer this BEFORE committing a mempool
+roadmap: if it is intractable, "decentralized operator committee on the roadmap"
+(already on the landing page) is a promise that cannot be kept.
+
+Why the mempool is the right THESIS but the wrong NEXT COMMIT: for the
+leaderboard, guaranteed reveal is the product and secrecy is a bonus, so Stage 0
+ships honestly. A mempool INVERTS that - secrecy IS the product and an early read
+is money, so the trusted dealer / one-container operators / unverified cue stop
+being caveats and become the product being a lie. Also ~10 buyers, all courted
+(Shutter, BuilderNet, Radius, Espresso), each a 6-18 month integration sale.
+
+### The playground (SHIPPED): `#/encrypted-mempool`
+The one artifact in this direction that is honest at Stage 0, because a demo has
+no money, so the trust hole costs nothing. Hold this line exactly:
+- SIMULATED: pool, searcher, block. `src/mempool/amm.ts`, constant-product.
+- REAL: the seal (wasm, live committee params), the batch, the cue, and the
+  reveal. The right-hand fill executes on plaintext read back out of
+  `/v0/reveals`, NOT from a local variable. Verified: two tabs land in the SAME
+  batch (2 real ciphertexts + 62 padding) and each recovers its own slot.
+- The page states the trust gap in `.mp-trust` rather than hiding it.
+
+KEY MODELLING RESULT (do not regress): a sandwich is bounded by the VICTIM'S
+SLIPPAGE TOLERANCE, not the searcher's appetite. The searcher front-runs to
+exactly the edge where the victim's amountOutMin would revert. So the loss lands
+precisely on the slippage setting (0.5% tolerance -> 0.5% stolen), and small
+swaps are not sandwiched at all because the 0.3% fee on both legs eats the edge.
+An earlier unconstrained optimizer said the searcher front-runs with the whole
+reserve and takes 72% of the swap - absurd, and it would have been an
+embarrassing overclaim on screen. `bestSandwich()` bisects for the revert wall.
+
+Do NOT call this an "anti-sandwich testnet". That is the Stage-2 artifact and it
+requires genuinely separated operators to mean anything. This is a playground.
+
 ## Telemetry (final run)
 - divergence: n/a (execution build; spec was the approved plan)
 - models: main loop + 1 explorer subagent; gates (executable) replaced skeptic panels

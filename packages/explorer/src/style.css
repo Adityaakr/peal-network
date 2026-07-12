@@ -2558,3 +2558,201 @@ body.landing-page main {
     }
   }
 }
+
+/* ---------- encrypted mempool ---------- */
+
+.mp {
+  padding-bottom: 8px;
+}
+
+.mp-head {
+  margin-bottom: 22px;
+}
+
+.mp-head .hero-sub {
+  max-width: 640px;
+  margin-bottom: 0;
+}
+
+.mp-form {
+  margin-bottom: 20px;
+  background: #fff;
+}
+
+.mp-form .pg-row {
+  margin-top: 14px;
+}
+
+.mp-form .scenario-prompt {
+  margin-top: 2px;
+}
+
+.pg-row input#mp-amount {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  padding: 9px 14px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pg-row input#mp-amount:hover {
+  border-color: #d1d5db;
+}
+
+#mp-quote {
+  margin-top: 12px;
+}
+
+/* The two mempools sit side by side and collapse to a stack on narrow
+   screens, where the comparison still reads because the public side comes
+   first. */
+.mp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.mp-grid[hidden] {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .mp-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mp-side {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px 20px;
+  background: #fff;
+  min-width: 0;
+}
+
+/* The only place two accents are allowed to sit next to each other: the whole
+   page is a comparison, so the sides have to be told apart at a glance. */
+.mp-public {
+  border-color: var(--red-border);
+}
+
+.mp-peal {
+  border-color: var(--accent-border);
+}
+
+.mp-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mp-side-head h2 {
+  margin: 0;
+  font-family: 'Josefin Sans', system-ui, -apple-system, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.mp-side .trace {
+  margin-top: 16px;
+}
+
+/* The searcher's read: cleartext on one side, ciphertext on the other. Same
+   box, deliberately, so the difference is the content and nothing else. */
+.mp-clear,
+.mp-cipher {
+  display: block;
+  margin-top: 4px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.mp-clear {
+  background: var(--red-weak);
+  border: 1px solid var(--red-border);
+  color: var(--red-text);
+}
+
+.mp-cipher {
+  background: var(--accent-weak);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+}
+
+.mp-nothing {
+  display: block;
+  margin-top: 5px;
+}
+
+.mp-result {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.mp-result-line {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.mp-result-bad .mp-result-line .num {
+  color: var(--red);
+}
+
+.mp-result-good .mp-result-line .num {
+  color: var(--green);
+}
+
+.mp-result-take,
+.mp-result-foot {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mp-result-foot {
+  margin-top: 8px;
+}
+
+.mp-verdict {
+  margin: 22px 0 0;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 15px;
+  max-width: 640px;
+}
+
+.mp-trust {
+  max-width: 640px;
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.mp-trust p {
+  margin: 0 0 8px;
+}
+
+.mp-trust p:last-child {
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mp-result,
+  .mp-verdict {
+    animation: reveal-in 260ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
+}
