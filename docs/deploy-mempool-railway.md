@@ -63,27 +63,31 @@ swap, and a background keeper would risk resetting them mid-swap.
 
 ## 4. The explorer (static SPA)
 
-> The currently-live service (`bte-explorer-production`) is the **devnet-in-a-box**
-> image (`docker/Dockerfile.railway`): it runs the coordinator + operators AND
-> serves the explorer static build, with Caddy proxying `/v0` same-origin. If you
-> keep that bundling, you do NOT deploy a separate explorer service. Instead set
-> `VITE_RELAYER_URL` as a **build variable** on that one service and redeploy it;
-> the Dockerfile now bakes it into the explorer build. `VITE_BTE_URL` stays empty
-> (same-origin `/v0`). The standalone-explorer setup below is the alternative if
-> you ever split them apart.
+**Recommended: run the explorer as its own service.** The devnet-in-a-box image
+(`docker/Dockerfile.railway`) also serves the explorer, but rebuilding it for a
+UI change means the full coordinator/node/cli Rust build (10+ min). Splitting the
+static site out lets UI changes deploy in a few minutes and auto-update on push.
 
-
-The explorer imports the `bte-sdk` workspace package, so its build needs the
-whole repo. On Railway set this service's **root directory to the repo root**
-and its Dockerfile path to `packages/explorer/Dockerfile`.
+`packages/explorer/Dockerfile` builds the wasm SDK + the SPA and serves it, no
+coordinator binaries. The explorer imports the `bte-sdk` workspace package, so
+the build context is the **repo root** (leave Root Directory empty). Point the
+service at this Dockerfile with a config file instead of the repo-root
+`railway.json` (which builds the devnet): set the service's **Config File** to
+`railway.explorer.json`, or set `RAILWAY_DOCKERFILE_PATH=packages/explorer/Dockerfile`.
 
 The coordinator and relayer URLs are inlined at build time, so set them as
-**build variables** (Railway build args):
+**build variables**:
 
 ```
-VITE_BTE_URL=<coordinator base url>        # e.g. https://<coordinator>.up.railway.app
+VITE_BTE_URL=<coordinator base url>        # the devnet service's own railway domain (serves /v0, sends CORS)
 VITE_RELAYER_URL=<relayer base url>        # the relayer service's public URL
 ```
+
+Because the standalone explorer is no longer behind the devnet Caddy, `/v0` is
+now cross-origin; that is fine, the coordinator sends permissive CORS. When you
+move a custom domain (e.g. `peal.network`) onto this explorer service, give the
+devnet/coordinator service its own railway domain and point both `VITE_BTE_URL`
+and the settler's `COORDINATOR_URL` at that domain (not the explorer's).
 
 It serves the built SPA on `PORT` with an SPA fallback so hash routes resolve.
 
