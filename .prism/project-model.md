@@ -549,6 +549,20 @@ paragraphs. Page reads problem (attack) then solution (protection), both lanes i
 matching depth. Full order: swap -> outcome comparison + diff -> public attack
 pipeline -> peal protection pipeline -> FAQ.
 
+### Fair-comparison fix + committee symbols (2026-07-12, DONE)
+SERIOUS bug the user hit: public and peal are SEPARATE on-chain pools that drift
+independently, so with no sandwich peal could show LESS than public (esp. one
+direction) and the sandwich amount was unclear. Fix: SwapPool.adminSetReserves
+(admin = relayer, pulls deficit / returns surplus) + relayer POST /prepare resets
+BOTH pools to an identical 30M/10000 ($3000) before every swap (browser calls it
+first in run()). So the only difference is the sandwich; peal >= public always.
+Redeployed (admin param + big relayer reseed buffer). Diff clamped >= 0.
+Verified both directions: USDC->ETH $1236 kept, ETH->USDC $1187 kept, peal>=public.
+Keeper NOT run anymore (would reset mid-swap); /prepare owns pool state per swap.
+New deploy addresses in deployments/42431.json.
+Visual: committee operator dots -> rounded nodes with a blue key-share glyph +
+shadow, green + check when they return a share; flow cards got a base shadow.
+
 ### Tempo-under-load learnings (robustness)
 Rapid concurrent test swaps wedged agent nonces (a stalled tx blocks everything
 behind it; symptom: relayer /commit hangs forever). Fixes applied: TX_GAS
