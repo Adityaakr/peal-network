@@ -472,6 +472,21 @@ STILL LOCAL-ONLY (not blocking): the relayer/searcher/settler run on this
 machine, not hosted. To make the public URL fully live, host the 3 agents
 (e.g. Railway) and set the explorer's VITE_RELAYER_URL to the hosted relayer.
 
+## Encrypted-mempool page REDESIGN (2026-07-12, in progress)
+User wants a clean, engaging visual (current page too text-heavy). Direction:
+- Title just "encrypted mempool" (drop the long hero paragraph).
+- A real DEX-style swap card first: show pay/receive tokens, live quote, price
+  "1 ETH = X USDC", slippage, min received, a Swap button (looks like Uniswap).
+- On Swap: the swap card smoothly animates away, then the public-vs-peal
+  comparison animates in.
+- Comparison: two panels EQUAL height/aligned (current ones drift in size), each
+  with a 3D visual showing clear value transfer + the difference. 3D "sandwich"
+  motif for the public lane; sealed vault/cube for peal. CSS 3D only (no libs,
+  CSP), same approach as ceremony.ts.
+- Move the "what is real here" trust text into an FAQ section at the bottom.
+Pools redeployed DEEP (30M USDC / 10k ETH = $3000/ETH) so repeated demo swaps
+barely drift the price; addresses in deployments/42431.json (updated).
+
 ## APT / Move support (LATER, not now)
 Aptos is Move-VM, not EVM - our Solidity contracts + EVM SDK path do not run on
 it. A real APT target = a from-scratch Move rewrite of DemoToken/SwapPool/

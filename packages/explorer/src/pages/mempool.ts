@@ -1,15 +1,12 @@
-// The encrypted mempool, live on-chain.
+// The encrypted mempool, live on Tempo. A DEX-style swap that, once sent, opens
+// into a side-by-side of what happens to it in a public mempool versus the
+// sealed Peal mempool — the same trade, sandwiched on one side and untouched on
+// the other, with the real on-chain transactions behind both.
 //
-// One swap, sent into two real pools. The public lane's order is submitted in
-// the clear; a real searcher bot with its own key reads it and sandwiches it
-// with real transactions. The peal lane's order is sealed through the real
-// committee — the chain sees only a ciphertext hash — and settles at the cue
-// via PealMempool.executeBatch, which the contract binds to the revealed batch.
-//
-// The browser signs nothing: the relayer sponsors both submissions. What is
-// simulated is nothing on-chain; the pool, the searcher, and the settlement are
-// all real. The one honest gap is the committee's trust model (a dealer-trusted
-// ceremony, operators that do not yet verify the cue), stated on the page.
+// Nothing here is simulated: both pools are real contracts, the searcher is a
+// real bot, and the sealed order settles via PealMempool.executeBatch. The
+// browser signs nothing; the relayer sponsors both lanes. The committee trust
+// caveat lives in the FAQ.
 import { BteClient } from 'bte-sdk';
 import { API_BASE } from '../api';
 import {
@@ -26,42 +23,36 @@ import {
   txUrl,
   type MempoolConfig,
 } from '../mempool/chain';
+import { createSandwichScene, createVaultScene, type Scene } from '../mempool/visuals';
 import { esc, fmtCountdown } from '../util';
 
 const ROUND_SECS = 30;
 const POLL_MS = 1500;
 const SLIP_BPS: Record<string, bigint> = { '0.001': 10n, '0.005': 50n, '0.01': 100n, '0.03': 300n };
 
-type StepState = 'todo' | 'active' | 'done';
-interface Step {
-  label: string;
-  detail?: string;
-  state: StepState;
-}
-
-const usd = (n: number) =>
-  n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const usd2 = (n: number) =>
+  n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+const num = (s: string, dp = 4) => Number(s).toLocaleString(undefined, { maximumFractionDigits: dp });
 
 export function renderMempool(root: HTMLElement): () => void {
   const previousTitle = document.title;
-  document.title = 'Peal Network. the encrypted mempool';
+  document.title = 'Peal Network. encrypted mempool';
 
   const client = new BteClient({ url: API_BASE });
   let cfg: MempoolConfig | null = null;
   let dead = false;
   let busy = false;
   const timers: number[] = [];
+  let sandwich: Scene | null = null;
+  let vault: Scene | null = null;
 
   root.innerHTML = `
     <section class="mp">
-      <header class="mp-head">
-        <h1 class="hero-title">one swap. two mempools. on-chain.</h1>
-        <p class="hero-sub">a real searcher bot is watching both pools. on the left it reads
-        your trade and wraps a real sandwich around it. on the right it sees a ciphertext hash
-        and has nothing to act on. you sign nothing; the relayer sponsors both. same trade, same
-        pool, same searcher.</p>
+      <header class="mp-hero">
+        <h1 class="mp-title">encrypted mempool</h1>
+        <p class="mp-tagline">swap on a live pool. watch MEV vanish.</p>
       </header>
-      <div id="mp-boot" class="card">connecting to the demo stack…</div>
+      <div id="mp-boot" class="mp-boot">connecting to the live pool…</div>
       <div id="mp-app" hidden></div>
     </section>
   `;
@@ -78,9 +69,9 @@ export function renderMempool(root: HTMLElement): () => void {
       mountApp();
     } catch {
       bootEl.innerHTML = `
-        <p class="error" style="margin-top:0">the on-chain demo stack is not reachable.</p>
-        <p class="muted">start the relayer and searcher (and a settler pointed at the coordinator),
-        then reload. see <span class="mono">packages/mempool-agents</span>.</p>`;
+        <p class="error" style="margin-top:0">the live demo stack is not reachable.</p>
+        <p class="muted">start the relayer, searcher and settler in
+        <span class="mono">packages/mempool-agents</span>, then reload.</p>`;
     }
   }
 
@@ -89,116 +80,147 @@ export function renderMempool(root: HTMLElement): () => void {
     bootEl.hidden = true;
     appEl.hidden = false;
     appEl.innerHTML = `
-      <form class="mp-form card" id="mp-form" autocomplete="off">
-        <p class="scenario-kicker">Try Peal Playground</p>
-        <p class="scenario-prompt">You are buying ETH with USDC on a live pool.
-        chain <span class="mono">${c.chainId}</span>. you sign nothing.</p>
-        <div class="pg-row">
-          <label class="pg-control pg-control-grow">
-            <span class="field-label">you swap (USDC)</span>
-            <input type="number" id="mp-amount" value="50000" min="100" max="500000" step="100" required />
-          </label>
-          <label class="pg-control pg-control-select">
-            <span class="field-label">slippage tolerance</span>
-            <select id="mp-slip">
-              <option value="0.001">0.1%</option>
-              <option value="0.005" selected>0.5%</option>
-              <option value="0.01">1%</option>
-              <option value="0.03">3%</option>
-            </select>
-          </label>
-          <button type="submit" class="btn btn-primary" id="mp-go">send it to both</button>
+      <div class="mp-stage">
+        <div class="mp-swap-wrap" id="mp-swap-wrap">
+          <div class="mp-swap">
+            <div class="mp-swap-head">
+              <span>Swap</span>
+              <span class="mp-swap-net" title="live on Tempo">chain ${c.chainId}</span>
+            </div>
+
+            <div class="mp-swap-field">
+              <div class="mp-field-top"><span>You pay</span></div>
+              <div class="mp-field-main">
+                <input type="number" id="mp-pay" value="250000" min="100" max="5000000" step="10000"
+                       autocomplete="off" inputmode="decimal" />
+                <span class="mp-token"><i class="mp-coin mp-coin-usdc"></i>USDC</span>
+              </div>
+            </div>
+
+            <div class="mp-swap-mid"><span class="mp-swap-swapicon" aria-hidden="true"></span></div>
+
+            <div class="mp-swap-field">
+              <div class="mp-field-top"><span>You receive</span></div>
+              <div class="mp-field-main">
+                <span class="mp-recv" id="mp-recv">0.0</span>
+                <span class="mp-token"><i class="mp-coin mp-coin-eth"></i>ETH</span>
+              </div>
+            </div>
+
+            <div class="mp-swap-info">
+              <div class="mp-info-row"><span>Rate</span><span id="mp-rate" class="mono">—</span></div>
+              <div class="mp-info-row">
+                <span>Max slippage</span>
+                <select id="mp-slip" class="mp-slip">
+                  <option value="0.001">0.1%</option>
+                  <option value="0.005" selected>0.5%</option>
+                  <option value="0.01">1%</option>
+                  <option value="0.03">3%</option>
+                </select>
+              </div>
+              <div class="mp-info-row"><span>Min received</span><span id="mp-min" class="mono">—</span></div>
+            </div>
+
+            <button type="button" class="mp-swap-btn" id="mp-go">Swap</button>
+            <p class="mp-swap-foot">you sign nothing. the relayer sponsors the transaction.</p>
+            <p class="error" id="mp-error" hidden></p>
+          </div>
         </div>
-        <p class="field-hint" id="mp-quote"></p>
-        <p class="error" id="mp-error" hidden></p>
-      </form>
 
-      <div class="mp-grid" id="mp-grid" hidden>
-        <article class="mp-side mp-public">
-          <header class="mp-side-head"><h2>public mempool</h2><span class="chip chip-stalled">readable</span></header>
-          <div id="mp-public-body"></div>
-        </article>
-        <article class="mp-side mp-peal">
-          <header class="mp-side-head"><h2>peal mempool</h2><span class="chip chip-frozen">sealed</span></header>
-          <div id="mp-peal-body"></div>
-        </article>
+        <div class="mp-compare" id="mp-compare" hidden>
+          <div class="mp-lanes">
+            <article class="mp-lane mp-lane-public">
+              <header class="mp-lane-head"><h2>public mempool</h2><span class="mp-lane-chip mp-chip-red">readable</span></header>
+              <div class="mp-visual" id="mp-vis-public"></div>
+              <div class="mp-lane-result" id="mp-res-public"></div>
+            </article>
+            <article class="mp-lane mp-lane-peal">
+              <header class="mp-lane-head"><h2>peal mempool</h2><span class="mp-lane-chip mp-chip-blue">sealed</span></header>
+              <div class="mp-visual" id="mp-vis-peal"></div>
+              <div class="mp-lane-result" id="mp-res-peal"></div>
+            </article>
+          </div>
+          <div class="mp-diff" id="mp-diff" hidden></div>
+          <button type="button" class="btn" id="mp-again" hidden>swap again</button>
+        </div>
       </div>
-      <p class="mp-verdict" id="mp-verdict" hidden></p>
 
-      <div class="trust-note mp-trust">
-        <p><strong>what is real here.</strong></p>
-        <p>Both pools are real contracts on chain ${c.chainId}. The searcher is a real bot with
-        its own key; on the public lane it submits real front-run and back-run transactions, and
-        on the peal lane it sees only a hash and does nothing. Your order is sealed through the
-        real committee and settled by PealMempool.executeBatch, which re-derives the batch's
-        merkle root and refuses anything that is not the revealed batch. You sign nothing; the
-        relayer sponsors both submissions.</p>
-        <p>The honest gap: the committee is dealer-trusted and its operators do not yet verify
-        the cue for themselves, so today a dishonest operator could read the sealed order early.
-        That is the decentralisation work still on the roadmap. The cryptography and the
-        settlement are real; the committee's trust model is not there yet.</p>
-      </div>
+      <section class="mp-faq">
+        <h2 class="mp-faq-title">FAQ</h2>
+        ${faqHtml(c.chainId)}
+      </section>
     `;
 
-    const form = appEl.querySelector<HTMLFormElement>('#mp-form')!;
-    const amountEl = appEl.querySelector<HTMLInputElement>('#mp-amount')!;
-    const slipEl = appEl.querySelector<HTMLSelectElement>('#mp-slip')!;
-    const quoteEl = appEl.querySelector<HTMLElement>('#mp-quote')!;
+    wireFaq(appEl);
 
-    const paintQuote = async () => {
+    const payEl = appEl.querySelector<HTMLInputElement>('#mp-pay')!;
+    const slipEl = appEl.querySelector<HTMLSelectElement>('#mp-slip')!;
+    const recvEl = appEl.querySelector<HTMLElement>('#mp-recv')!;
+    const rateEl = appEl.querySelector<HTMLElement>('#mp-rate')!;
+    const minEl = appEl.querySelector<HTMLElement>('#mp-min')!;
+    const go = appEl.querySelector<HTMLButtonElement>('#mp-go')!;
+
+    const refreshQuote = async () => {
       if (busy) return;
       try {
         const { pealPool } = await getState();
-        const amountIn = toWad(Number(amountEl.value) || 0);
+        const amountIn = toWad(Number(payEl.value) || 0);
         const out = getAmountOut(amountIn, pealPool.base, pealPool.quote);
         const slip = SLIP_BPS[slipEl.value] ?? 50n;
         const floor = (out * (10000n - slip)) / 10000n;
-        quoteEl.innerHTML =
-          `quoted at <span class="num">${esc(fromWad(out))} ETH</span>, and you will accept as ` +
-          `little as <span class="num">${esc(fromWad(floor))} ETH</span>. that floor is the whole ` +
-          `game: a searcher takes everything above it that it can.`;
+        recvEl.textContent = num(fromWad(out));
+        const price = Number(payEl.value) / Number(fromWad(out) || '1');
+        rateEl.textContent = `1 ETH = ${price.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC`;
+        minEl.textContent = `${num(fromWad(floor))} ETH`;
       } catch {
         /* transient */
       }
     };
-    amountEl.addEventListener('input', () => void paintQuote());
-    slipEl.addEventListener('change', () => void paintQuote());
-    void paintQuote();
+    payEl.addEventListener('input', () => void refreshQuote());
+    slipEl.addEventListener('change', () => void refreshQuote());
+    void refreshQuote();
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
+    go.addEventListener('click', () => {
       if (busy) return;
-      void run(Number(amountEl.value) || 0, slipEl.value).catch((err) => {
-        const el = appEl.querySelector<HTMLElement>('#mp-error')!;
-        el.hidden = false;
-        el.textContent = err instanceof Error ? err.message : String(err);
-        busy = false;
-        appEl.querySelector<HTMLButtonElement>('#mp-go')!.disabled = false;
-        appEl.querySelector<HTMLButtonElement>('#mp-go')!.textContent = 'try again';
-      });
+      void run(Number(payEl.value) || 0, slipEl.value).catch((err) => showError(err));
     });
+
+    appEl.querySelector<HTMLButtonElement>('#mp-again')!.addEventListener('click', () => reset());
   }
 
-  // ---- rendering helpers ------------------------------------------------
-
-  function stepsHtml(steps: Step[]): string {
-    return `<ol class="trace">${steps
-      .map(
-        (s) => `<li class="trace-step trace-${s.state}">
-      <span class="trace-marker" aria-hidden="true"></span>
-      <span class="trace-body"><span class="trace-label">${esc(s.label)}</span>${
-        s.detail ? `<span class="trace-detail">${s.detail}</span>` : ''
-      }</span></li>`,
-      )
-      .join('')}</ol>`;
+  function showError(err: unknown): void {
+    const el = appEl.querySelector<HTMLElement>('#mp-error');
+    if (el) {
+      el.hidden = false;
+      el.textContent = err instanceof Error ? err.message : String(err);
+    }
+    busy = false;
+    const go = appEl.querySelector<HTMLButtonElement>('#mp-go');
+    if (go) {
+      go.disabled = false;
+      go.textContent = 'Swap';
+    }
   }
 
-  function link(hash: string): string {
-    const u = txUrl(cfg!, hash);
-    const short = `${hash.slice(0, 10)}…${hash.slice(-6)}`;
-    return u
-      ? `<a class="mono link" href="${u}" target="_blank" rel="noopener">${short}</a>`
-      : `<span class="mono">${short}</span>`;
+  function reset(): void {
+    const compare = appEl.querySelector<HTMLElement>('#mp-compare')!;
+    const swapWrap = appEl.querySelector<HTMLElement>('#mp-swap-wrap')!;
+    compare.classList.remove('is-in');
+    compare.hidden = true;
+    swapWrap.hidden = false;
+    // force reflow then animate back in
+    void swapWrap.offsetWidth;
+    swapWrap.classList.remove('is-out');
+    sandwich?.destroy();
+    vault?.destroy();
+    sandwich = null;
+    vault = null;
+    busy = false;
+    const go = appEl.querySelector<HTMLButtonElement>('#mp-go');
+    if (go) {
+      go.disabled = false;
+      go.textContent = 'Swap';
+    }
   }
 
   // ---- the run ----------------------------------------------------------
@@ -207,145 +229,135 @@ export function renderMempool(root: HTMLElement): () => void {
     busy = true;
     const c = cfg!;
     const go = appEl.querySelector<HTMLButtonElement>('#mp-go')!;
-    const errEl = appEl.querySelector<HTMLElement>('#mp-error')!;
-    const grid = appEl.querySelector<HTMLElement>('#mp-grid')!;
-    const publicEl = appEl.querySelector<HTMLElement>('#mp-public-body')!;
-    const pealEl = appEl.querySelector<HTMLElement>('#mp-peal-body')!;
-    const verdictEl = appEl.querySelector<HTMLElement>('#mp-verdict')!;
-    errEl.hidden = true;
-    verdictEl.hidden = true;
-    grid.hidden = false;
     go.disabled = true;
-    go.textContent = 'in flight…';
+    go.textContent = 'sending…';
 
-    // Fix the swap at contract precision off the live peal reserves.
     const { pealPool } = await getState();
     const amountIn = toWad(amount);
     const fair = getAmountOut(amountIn, pealPool.base, pealPool.quote);
     const slip = SLIP_BPS[slipKey] ?? 50n;
     const minOut = (fair * (10000n - slip)) / 10000n;
+    const midPrice = Number(fromWad(pealPool.base)) / Number(fromWad(pealPool.quote));
 
-    const publicSteps: Step[] = [
-      { label: 'your swap enters the public mempool', state: 'active' },
-      { label: 'the searcher reads it', state: 'todo' },
-      { label: 'it wraps a sandwich and settles', state: 'todo' },
-    ];
-    const pealSteps: Step[] = [
-      { label: 'your swap is sealed to the committee', state: 'active' },
-      { label: 'the searcher sees only a hash', state: 'todo' },
-      { label: 'the cue fires and the batch opens on-chain', state: 'todo' },
-    ];
-    const paintPublic = () => (publicEl.innerHTML = stepsHtml(publicSteps));
-    const paintPeal = () => (pealEl.innerHTML = stepsHtml(pealSteps));
-    paintPublic();
-    paintPeal();
+    // Transition: swap card out, comparison in.
+    const swapWrap = appEl.querySelector<HTMLElement>('#mp-swap-wrap')!;
+    const compare = appEl.querySelector<HTMLElement>('#mp-compare')!;
+    swapWrap.classList.add('is-out');
+    setTimeout(() => {
+      swapWrap.hidden = true;
+    }, 420);
+    compare.hidden = false;
+    void compare.offsetWidth;
+    compare.classList.add('is-in');
+
+    // Mount the 3D scenes.
+    sandwich = createSandwichScene();
+    vault = createVaultScene();
+    appEl.querySelector<HTMLElement>('#mp-vis-public')!.appendChild(sandwich.el);
+    appEl.querySelector<HTMLElement>('#mp-vis-peal')!.appendChild(vault.el);
+    sandwich.play();
+    vault.play();
+
+    const publicRes = appEl.querySelector<HTMLElement>('#mp-res-public')!;
+    const pealRes = appEl.querySelector<HTMLElement>('#mp-res-peal')!;
+    publicRes.innerHTML = laneStatus('the searcher is reading your order in the clear…');
+    pealRes.innerHTML = laneStatus(`sealed. cue in ${ROUND_SECS}s. the searcher sees only a hash…`);
 
     // Seal the peal order through the real coordinator.
     const conditionId = await client.condition({ in: ROUND_SECS, tag: 'mempool' });
-    const payload = encodeOrder({
-      trader: c.relayer,
-      baseToQuote: true,
-      amountIn,
-      minOut,
-      to: c.relayer,
-    });
+    const payload = encodeOrder({ trader: c.relayer, baseToQuote: true, amountIn, minOut, to: c.relayer });
     const sealed = await client.seal(payload, conditionId);
     if (dead) return;
-    pealSteps[0].state = 'done';
-    pealSteps[0].detail = `only the ciphertext left your browser. cue in ${ROUND_SECS}s.`;
-    pealSteps[1].state = 'active';
-    paintPeal();
 
-    // Peal on-chain commit (searcher sees only the hash) + public order.
     const commit = await commitSealed(conditionId, sealed.ctHash);
-    pealSteps[1].state = 'done';
-    pealSteps[1].detail =
-      `<span class="mono mp-cipher">${esc(sealed.ctHash)}</span>` +
-      `<span class="mp-nothing">committed on-chain in ${link(commit.txHash)}. no amount, no ` +
-      `direction. nothing to sandwich.</span>`;
-    pealSteps[2].state = 'active';
-    paintPeal();
+    pealRes.innerHTML = laneStatus(
+      `committed on-chain as a hash (${link(commit.txHash)}). cue in ~${ROUND_SECS}s…`,
+    );
 
     const pub = await submitPublicSwap({
       amountIn: String(amount),
       minOut: fromWad(minOut),
       baseToQuote: true,
     });
-    publicSteps[0].state = 'done';
-    publicSteps[0].detail = `submitted in the clear (${link(pub.txHash)}): ${usd(amount)} in, floor ${fromWad(minOut)} ETH.`;
-    publicSteps[1].state = 'active';
-    paintPublic();
 
-    // Poll both fates in parallel.
-    const publicDone = pollPublic(pub.orderId, fair, publicSteps, paintPublic);
-    const pealDone = pollPeal(conditionId, fair, pealSteps, paintPeal);
-    const [pubRes, pealRes] = await Promise.all([publicDone, pealDone]);
+    const [pubOut, pealOut] = await Promise.all([
+      pollPublic(pub.orderId, fair, midPrice, publicRes),
+      pollPeal(conditionId, fair, pealRes),
+    ]);
     if (dead) return;
 
-    // Verdict.
-    verdictEl.hidden = false;
-    if (pubRes.sandwiched) {
-      const lost = Number(fromWad(fair)) - Number(pubRes.victimOut);
-      const lostUsd = lost * (Number(fromWad(pealPool.base)) / Number(fromWad(pealPool.quote)));
-      verdictEl.innerHTML =
-        `same swap, two lanes. in the readable mempool the searcher took ` +
-        `<span class="num accent">$${pubRes.profit ? Number(pubRes.profit).toFixed(2) : '0'}</span> ` +
-        `and you were pushed to <span class="num">${pubRes.victimOut} ETH</span> ` +
-        `(about <span class="num">$${lostUsd.toFixed(0)}</span> gone). in the sealed one you got ` +
-        `<span class="num accent">${pealRes.fill} ETH</span>, the full quote, because there was ` +
-        `nothing to read.`;
+    // Difference banner.
+    const diff = appEl.querySelector<HTMLElement>('#mp-diff')!;
+    diff.hidden = false;
+    if (pubOut.sandwiched) {
+      const keptUsd = (Number(pealOut.fill) - Number(pubOut.victimOut)) * midPrice;
+      diff.innerHTML =
+        `<span class="mp-diff-kicker">same swap, two mempools</span>` +
+        `<span class="mp-diff-num">${usd2(keptUsd)}</span>` +
+        `<span class="mp-diff-cap">kept on Peal that the searcher took in the public mempool</span>`;
     } else {
-      verdictEl.innerHTML =
-        `this swap was too small to sandwich profitably, so the readable lane filled it honestly ` +
-        `too. raise the amount and send again: the readable lane starts leaking the moment the ` +
-        `trade is worth wrapping, and the sealed lane never does.`;
+      diff.innerHTML =
+        `<span class="mp-diff-kicker">same swap, two mempools</span>` +
+        `<span class="mp-diff-cap">too small to sandwich here — but the public lane leaks the moment the trade is worth wrapping. the sealed lane never does.</span>`;
     }
-
-    go.disabled = false;
-    go.textContent = 'send another';
+    appEl.querySelector<HTMLButtonElement>('#mp-again')!.hidden = false;
     busy = false;
+  }
+
+  // ---- lane polling / rendering -----------------------------------------
+
+  function laneStatus(msg: string): string {
+    return `<div class="mp-lane-status"><span class="mp-spinner" aria-hidden="true"></span>${esc(msg)}</div>`;
+  }
+
+  function link(hash: string): string {
+    const u = txUrl(cfg!, hash);
+    const short = `${hash.slice(0, 8)}…${hash.slice(-4)}`;
+    return u
+      ? `<a class="mono link" href="${u}" target="_blank" rel="noopener">${short}</a>`
+      : `<span class="mono">${short}</span>`;
   }
 
   interface PubOut {
     sandwiched: boolean;
-    victimOut?: string;
-    profit?: string;
+    victimOut: string;
+    profit: string;
   }
 
   function pollPublic(
     orderId: string,
     fairWei: bigint,
-    steps: Step[],
-    paint: () => void,
+    midPrice: number,
+    resEl: HTMLElement,
   ): Promise<PubOut> {
     return new Promise((resolve) => {
       const tick = async () => {
-        if (dead) return resolve({ sandwiched: false });
+        if (dead) return resolve({ sandwiched: false, victimOut: fromWad(fairWei), profit: '0' });
         const r = await getPublicResult(orderId).catch(() => ({ done: false }) as never);
         if (!r.done) return;
         clearInterval(id);
-        steps[1].state = 'done';
-        steps[2].state = 'done';
+        const fair = Number(fromWad(fairWei));
         if (r.sandwiched) {
-          steps[1].detail = 'amount, direction and floor, all in the clear. everything it needs.';
-          steps[2].detail =
-            `<div class="mp-result mp-result-bad"><p class="mp-result-line">you received ` +
-            `<span class="num">${esc(r.victimOut ?? '')} ETH</span>, not the ` +
-            `<span class="num">${esc(fromWad(fairWei))} ETH</span> you were quoted.</p>` +
-            `<p class="mp-result-take">the searcher took <span class="num">$${
-              r.profit ? Number(r.profit).toFixed(2) : '0'
-            }</span> off you in ${link(r.txHash ?? '')}.</p></div>`;
+          const lostUsd = (fair - Number(r.victimOut)) * midPrice;
+          sandwich?.resolve({ lostUsd });
+          resEl.innerHTML = resultHtml({
+            tone: 'bad',
+            got: r.victimOut ?? '',
+            fair: fromWad(fairWei),
+            line: `the searcher took <b>${usd2(Number(r.profit))}</b>`,
+            tx: link(r.txHash ?? ''),
+          });
         } else {
-          steps[1].detail = 'readable, but the fee makes it not worth wrapping.';
-          steps[2].detail =
-            `<div class="mp-result"><p class="mp-result-line">filled in full at ` +
-            `<span class="num">${esc(r.victimOut ?? '')} ETH</span> (${link(r.txHash ?? '')}).</p>` +
-            `<p class="mp-result-take">too small to sandwich: the 0.3% fee on both legs ate the ` +
-            `edge. being readable did not cost you here. it costs you as soon as the trade is ` +
-            `worth wrapping.</p></div>`;
+          sandwich?.resolve({ lostUsd: 0 });
+          resEl.innerHTML = resultHtml({
+            tone: 'ok',
+            got: r.victimOut ?? '',
+            fair: fromWad(fairWei),
+            line: `filled in full — too small to sandwich`,
+            tx: link(r.txHash ?? ''),
+          });
         }
-        paint();
-        resolve({ sandwiched: !!r.sandwiched, victimOut: r.victimOut, profit: r.profit });
+        resolve({ sandwiched: !!r.sandwiched, victimOut: r.victimOut ?? fromWad(fairWei), profit: r.profit ?? '0' });
       };
       const id = window.setInterval(() => void tick(), POLL_MS);
       timers.push(id);
@@ -357,17 +369,11 @@ export function renderMempool(root: HTMLElement): () => void {
     fill: string;
   }
 
-  function pollPeal(
-    conditionId: string,
-    fairWei: bigint,
-    steps: Step[],
-    paint: () => void,
-  ): Promise<PealOut> {
+  function pollPeal(conditionId: string, fairWei: bigint, resEl: HTMLElement): Promise<PealOut> {
     return new Promise((resolve) => {
       let firesAt = Math.floor(Date.now() / 1000) + ROUND_SECS;
       const tick = async () => {
         if (dead) return resolve({ fill: fromWad(fairWei) });
-        // Countdown until the cue, then settlement.
         try {
           const st = await client.status(conditionId);
           if (st.firesAt) firesAt = st.firesAt;
@@ -375,25 +381,25 @@ export function renderMempool(root: HTMLElement): () => void {
           /* transient */
         }
         const secs = firesAt - Math.floor(Date.now() / 1000);
-        if (steps[2].state === 'active') {
-          steps[2].detail =
-            secs > 0
-              ? `the batch freezes in <span class="num accent">${esc(fmtCountdown(secs))}</span>. until then it is ciphertext in a queue.`
-              : 'the cue fired. the committee is opening the batch and the settler is submitting it on-chain.';
-          paint();
-        }
         const r = await getPealResult(conditionId).catch(() => ({ done: false }) as never);
-        if (!r.done) return;
+        if (!r.done) {
+          resEl.innerHTML = laneStatus(
+            secs > 0
+              ? `sealed. the batch opens in ${esc(fmtCountdown(secs))}. nothing to read.`
+              : `the cue fired. opening the batch on-chain…`,
+          );
+          return;
+        }
         clearInterval(id);
         const fill = r.fills?.[0]?.amountOut ?? fromWad(fairWei);
-        steps[2].state = 'done';
-        steps[2].detail =
-          `<div class="mp-result mp-result-good"><p class="mp-result-line">you received ` +
-          `<span class="num">${esc(fill)} ETH</span>, the full quote.</p>` +
-          `<p class="mp-result-take">opened by PealMempool.executeBatch in ${link(r.txHash ?? '')}, ` +
-          `bound to merkle root <span class="mono">${esc((r.merkleRoot ?? '').slice(0, 14))}…</span>. ` +
-          `the searcher took <span class="num">$0</span>: it never learned there was a swap.</p></div>`;
-        paint();
+        vault?.resolve({ kept: true });
+        resEl.innerHTML = resultHtml({
+          tone: 'good',
+          got: fill,
+          fair: fromWad(fairWei),
+          line: `the searcher took <b>$0</b>, opened by executeBatch`,
+          tx: link(r.txHash ?? ''),
+        });
         resolve({ fill });
       };
       const id = window.setInterval(() => void tick(), POLL_MS);
@@ -402,9 +408,66 @@ export function renderMempool(root: HTMLElement): () => void {
     });
   }
 
+  function resultHtml(o: { tone: 'bad' | 'ok' | 'good'; got: string; fair: string; line: string; tx: string }): string {
+    const gotClass = o.tone === 'bad' ? 'mp-got-bad' : o.tone === 'good' ? 'mp-got-good' : 'mp-got-ok';
+    return `
+      <div class="mp-result-num ${gotClass}">${num(o.got)}<span class="mp-result-unit">ETH</span></div>
+      <div class="mp-result-line">${o.line}. ${o.tx}</div>`;
+  }
+
   return () => {
     dead = true;
     for (const t of timers) clearInterval(t);
+    sandwich?.destroy();
+    vault?.destroy();
     document.title = previousTitle;
   };
+}
+
+// ---- FAQ ----------------------------------------------------------------
+
+function faqHtml(chainId: number): string {
+  const items: Array<[string, string]> = [
+    [
+      'Is any of this simulated?',
+      `No. Both pools are real contracts on chain ${chainId}. The searcher is a real bot with its own key; on the public lane it submits real front-run and back-run transactions, and on the peal lane it sees only a ciphertext hash and does nothing. Your order is sealed through the real committee and settled by <span class="mono">PealMempool.executeBatch</span>, which re-derives the batch's merkle root and refuses anything that is not the revealed batch.`,
+    ],
+    [
+      'Do I need a wallet or gas?',
+      `No. You sign nothing. A relayer holds a funded key and sponsors both submissions on your behalf, so you can try it with one click.`,
+    ],
+    [
+      'How does the searcher take money on the public side?',
+      `It reads your pending swap in the clear, buys ahead of you to push the price up (the front-run), lets your swap fill at the worse price, then sells back (the back-run). It sizes the front-run to push you to exactly your slippage floor and no further — so your tolerance is really the quote you hand the searcher.`,
+    ],
+    [
+      'Why can it not do that on the peal side?',
+      `Because it never sees the order. The commitment on-chain is just a hash: no amount, no direction, nothing to wrap a sandwich around. The whole batch opens at once at the cue, after the ordering is already fixed.`,
+    ],
+    [
+      "What's the honest gap today?",
+      `The committee is dealer-trusted and its operators do not yet verify the cue for themselves, so today a dishonest operator could read the sealed order early. That is the decentralisation work still on the roadmap. The cryptography and the settlement are real; the committee's trust model is not there yet.`,
+    ],
+  ];
+  return items
+    .map(
+      ([q, a], i) => `
+      <div class="mp-faq-item" data-faq="${i}">
+        <button type="button" class="mp-faq-q" aria-expanded="false">
+          <span>${esc(q)}</span><span class="mp-faq-caret" aria-hidden="true"></span>
+        </button>
+        <div class="mp-faq-a"><p>${a}</p></div>
+      </div>`,
+    )
+    .join('');
+}
+
+function wireFaq(scope: HTMLElement): void {
+  scope.querySelectorAll<HTMLButtonElement>('.mp-faq-q').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.mp-faq-item')!;
+      const open = item.classList.toggle('is-open');
+      btn.setAttribute('aria-expanded', String(open));
+    });
+  });
 }

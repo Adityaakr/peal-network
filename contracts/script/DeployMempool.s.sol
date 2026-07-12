@@ -20,10 +20,15 @@ import {PealMempool} from "../src/PealMempool.sol";
 /// come from the token holder). Prints a JSON blob of addresses for the
 /// services and the explorer to consume.
 contract DeployMempool is Script {
-    uint256 constant BASE_RESERVE = 3_000_000 ether;
-    uint256 constant QUOTE_RESERVE = 1000 ether;
-    uint256 constant TRADER_USDC = 2_000_000 ether;
-    uint256 constant TRADER_ETH = 1000 ether;
+    // Deep pool ($90M: 30,000,000 mUSDC / 10,000 mETH, ETH at $3,000) so many
+    // demo swaps barely drift the price. The sandwich is bounded by the victim's
+    // slippage, not pool depth, so the drama is unchanged; the drift is ~10x
+    // smaller than a $6M pool. Traders hold enough for the larger front-runs a
+    // deep pool needs.
+    uint256 constant BASE_RESERVE = 30_000_000 ether;
+    uint256 constant QUOTE_RESERVE = 10_000 ether;
+    uint256 constant TRADER_USDC = 20_000_000 ether;
+    uint256 constant TRADER_ETH = 5_000 ether;
 
     function run() external {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
