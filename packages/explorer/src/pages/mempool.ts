@@ -42,10 +42,11 @@ import {
 import { esc, fmtCountdown, truncMiddle } from '../util';
 
 // The cue delay: the order seals to a condition that fires this many seconds
-// later, and the whole batch reveals then. Kept short for a snappy demo; the
-// only floor is that the on-chain commit must land before the cue fires, which
-// takes ~1-2s on a fast-finality chain, so 10s leaves comfortable margin.
-const ROUND_SECS = 10;
+// later, and the whole batch reveals then. Kept short for a snappy demo. The
+// floor is the seal reaching the coordinator before the cue (sub-second) plus
+// the operator poll (~2s) and the settle tx after reveal, so 5s is safe on a
+// fast-finality chain and lands the full swap in ~9-10s.
+const ROUND_SECS = 5;
 const POLL_MS = 1500;
 const SLIP_BPS: Record<string, bigint> = { '0.001': 10n, '0.005': 50n, '0.01': 100n, '0.03': 300n };
 
