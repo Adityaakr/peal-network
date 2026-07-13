@@ -73,7 +73,8 @@ pub fn open(path: &str) -> Result<Connection> {
     conn.pragma_update(None, "busy_timeout", 5000)?;
     conn.execute_batch(SCHEMA)?;
     // Migration for databases created before the tag column existed.
-    conn.execute("ALTER TABLE conditions ADD COLUMN tag TEXT", []).ok();
+    conn.execute("ALTER TABLE conditions ADD COLUMN tag TEXT", [])
+        .ok();
     Ok(conn)
 }
 

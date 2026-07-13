@@ -158,7 +158,11 @@ async fn create_condition(
         Some(t) => {
             if t.len() > 32
                 || !t.bytes().all(|b| {
-                    b.is_ascii_lowercase() || b.is_ascii_digit() || b == b':' || b == b'-' || b == b'_'
+                    b.is_ascii_lowercase()
+                        || b.is_ascii_digit()
+                        || b == b':'
+                        || b == b'-'
+                        || b == b'_'
                 })
             {
                 return Err(bad_request("tag must be <=32 chars of [a-z0-9:_-]"));

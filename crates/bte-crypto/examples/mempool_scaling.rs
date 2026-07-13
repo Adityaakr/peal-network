@@ -36,8 +36,9 @@ fn main() {
         let tx = vec![0xABu8; 200];
 
         let t0 = Instant::now();
-        let batch: Vec<SealedCiphertext> =
-            (0..b).map(|_| seal(&params, &tx, &mut rng).unwrap()).collect();
+        let batch: Vec<SealedCiphertext> = (0..b)
+            .map(|_| seal(&params, &tx, &mut rng).unwrap())
+            .collect();
         let t_seal_each = t0.elapsed() / b;
 
         let headers: Vec<CtHeader> = batch.iter().map(|ct| ct.header()).collect();
